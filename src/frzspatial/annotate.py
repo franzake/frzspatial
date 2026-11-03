@@ -84,7 +84,7 @@ def annotations_to_obs(sdata, classes, annot_dir="results/annotations", column="
         slide, core = f.stem.split("_", 1)
         in_core = (obs[slide_key].astype(str) == slide).to_numpy()
         if core != "slide":
-            in_core &= (obs[core_key].astype(str) == core).to_numpy()
+            in_core = in_core & (obs[core_key].astype(str) == core).to_numpy()
         if not in_core.any():
             continue
         xy = obs.loc[in_core, ["CenterX_global_px", "CenterY_global_px"]].to_numpy()
