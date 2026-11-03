@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "franzake" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"  # spatialdata 0.8
 keywords = ["spatial transcriptomics", "CosMx", "AtoMx", "SpatialData", "napari", "TMA"]
 classifiers = [
     "Programming Language :: Python :: 3",
