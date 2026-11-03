@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "frzspatial"
-version = "0.1.0"
+version = "0.1.1"
 description = "CosMx (AtoMx) exports to SpatialData: fast loading, stitched cores, plots and napari annotation"
 readme = "README.md"
 license = "MIT"
@@ -31,14 +31,22 @@ dependencies = [
     "tifffile",
     "tqdm",
     "zarr",
+    # plots, napari (0.10 needs Qt >= 6.7, not PyQt5), H&E registration
+    "spatialdata-plot",
+    "matplotlib",
+    "napari-spatialdata",
+    "napari[pyqt5]>=0.6,<0.10",
+    "scanpy",
+    "scikit-image",
+    # Intel Macs: numba > 0.61 needs llvmlite >= 0.45, which has no x86_64 macOS wheels and fails to build
+    "numba==0.61.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "llvmlite==0.44.0; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "numpy<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 
 [project.optional-dependencies]
-plot = ["spatialdata-plot", "matplotlib"]
-napari = ["napari-spatialdata", "napari[pyqt5]", "scanpy"]
-he = ["scikit-image"]
-all = ["frzspatial[plot,napari,he]"]
-test = ["pytest", "frzspatial[plot]"]
+all = []  # everything is installed by default; kept so that "frzspatial[all]" still works
+test = ["pytest"]
 docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.scripts]

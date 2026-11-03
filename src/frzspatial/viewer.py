@@ -1,7 +1,6 @@
 """napari windows: view a SpatialData object, and draw annotations on a core or slide.
 
-Needs the ``napari`` extra: ``pip install "frzspatial[napari]"``. Importing this module loads Qt, so import it only
-where a window is opened.
+Importing this module loads Qt, so import it only where a window is opened.
 
 Notes
 -----

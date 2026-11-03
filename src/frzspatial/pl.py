@@ -1,7 +1,6 @@
 """Static plots of single slides with spatialdata-plot, y up as in the AtoMx slide view.
 
-Needs the ``plot`` extra: ``pip install "frzspatial[plot]"``. Each function returns the matplotlib axes without
-showing them: call ``plt.show()`` or ``ax.figure.savefig(...)``.
+Each function returns the matplotlib axes without showing them: call ``plt.show()`` or ``ax.figure.savefig(...)``.
 """
 
 import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)

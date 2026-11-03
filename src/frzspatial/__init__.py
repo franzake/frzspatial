@@ -5,14 +5,14 @@ Modules
 frzspatial.io        build_sdata, load_slides, save_table: AtoMx flat files to SpatialData and back to zarr
 frzspatial.core      build_core, core_box: a core or slide stitched into one image and mask
 frzspatial.annotate  annotations_to_obs and GeoJSON helpers (no napari needed)
-frzspatial.pl        plot_slide_overview, plot_core, annotation_palette       (extra: plot)
-frzspatial.viewer    open_napari, annotate_core                                 (extra: napari; loads Qt)
-frzspatial.he        register_he, add_he_image: H&E registration            (extra: he)
+frzspatial.pl        plot_slide_overview, plot_core, annotation_palette
+frzspatial.viewer    open_napari, annotate_core (loads Qt)
+frzspatial.he        register_he, add_he_image: H&E registration
 frzspatial.qc        compute_sbr: regional signal-to-background ratio
 frzspatial.export    write_seurat_inputs: plain files for a Seurat object
 
 The functions of io, core, annotate, qc and export are also available at the top level, e.g. ``frzspatial.load_slides``.
-``pl``, ``viewer`` and ``he`` are imported on demand, since they need optional dependencies.
+``pl``, ``viewer`` and ``he`` are imported on demand, since they are slow to import (``viewer`` loads Qt).
 
 Use ``help(frzspatial.load_slides)`` (or any function) for its documentation.
 """

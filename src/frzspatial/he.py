@@ -1,7 +1,4 @@
-"""Register a whole-slide H&E (Aperio SVS) onto the CosMx cells, from tissue shape alone.
-
-Needs the ``he`` extra (scikit-image): ``pip install "frzspatial[he]"``.
-"""
+"""Register a whole-slide H&E (Aperio SVS) onto the CosMx cells, from tissue shape alone."""
 
 import re
 import warnings

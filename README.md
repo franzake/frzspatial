@@ -19,27 +19,21 @@ cores stitched into one image, plots, and hand annotation of regions in napari t
 ## Installation
 
 ```bash
-pip install "frzspatial[all] @ git+https://github.com/franzake/frzspatial"
-```
-
-Extras: `plot` (spatialdata-plot), `napari` (napari-spatialdata, PyQt5), `he` (scikit-image), `all`. The core
-install (reading, stitching, annotations, export) needs none of them:
-
-```bash
 pip install "git+https://github.com/franzake/frzspatial"
 ```
+
+This installs everything: plotting (spatialdata-plot), napari with PyQt5, and H&E registration (scikit-image).
 
 From R with reticulate:
 
 ```r
-reticulate::py_require(c("frzspatial[all] @ git+https://github.com/franzake/frzspatial", "napari==0.9.2"))
+reticulate::py_require("frzspatial @ git+https://github.com/franzake/frzspatial")
 ```
 
-On Intel Macs (x86_64), recent numba/llvmlite have no wheels and fail to build: add
-`"numba==0.61.2" "llvmlite==0.44.0" "numpy<2.3"` to the install command.
+On Intel Macs (x86_64) the install pins numba 0.61.2, llvmlite 0.44.0 and numpy < 2.3 by itself: newer llvmlite
+has no wheels there and fails to build. napari stays < 0.10, the last versions that work with PyQt5.
 
 Tested with Python 3.12, spatialdata 0.8.0, spatialdata-plot 0.4.3, napari 0.9.2 and napari-spatialdata 0.7.2.
-napari 0.10 needs Qt ≥ 6.7: pin `napari==0.9.2` when PyQt5 is used.
 
 ## Quick start
 
@@ -142,7 +136,7 @@ full reference is at <https://franzake.github.io/frzspatial>, or build it locall
 
 ```bash
 git clone https://github.com/franzake/frzspatial && cd frzspatial
-pip install -e ".[all,test,docs]"
+pip install -e ".[test,docs]"
 pytest
 ```
 
