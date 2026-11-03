@@ -3,6 +3,7 @@
 import numpy as np
 import scipy.sparse as sp
 from scipy.spatial import cKDTree
+from tqdm.auto import tqdm
 
 from ._utils import PX_UM
 
@@ -11,7 +12,8 @@ __all__ = ["compute_sbr"]
 PX_MM = PX_UM / 1000  # mm per AtoMx global px
 
 
-def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr_min=0, sbr_max=None, table="table"):
+def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr_min=0, sbr_max=None, table="table",
+                label=""):
     """Regional signal-to-background ratio (SBR) of each cell.
 
     Mean gene counts over mean negative-probe counts, each smoothed over the cell's neighbours with Gaussian weights.
@@ -33,6 +35,8 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
         Bounds on log2(SBR) for ``flag_sbr``; None disables a bound.
     table
         Table element name.
+    label
+        Prefix of the printed summary (e.g. the slide name).
 
     Returns
     -------
@@ -69,5 +73,6 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
     if sbr_max is not None:
         flag |= log2 > sbr_max
     obs["SBR"], obs["log2SBR"], obs["flag_sbr"] = sbr, log2, flag
-    print(f"flag_sbr (log2SBR outside [{sbr_min}, {sbr_max}]): {flag.sum()} / {n} cells")
+    prefix = f"{label}: " if label else ""
+    tqdm.write(f"{prefix}flag_sbr (log2SBR outside [{sbr_min}, {sbr_max}]): {flag.sum()} / {n} cells")
     return sbr
