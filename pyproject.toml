@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "frzspatial"
+version = "0.1.0"
+description = "CosMx (AtoMx) exports to SpatialData: fast loading, stitched cores, plots and napari annotation"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "franzake" }]
+requires-python = ">=3.10"
+keywords = ["spatial transcriptomics", "CosMx", "AtoMx", "SpatialData", "napari", "TMA"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "spatialdata>=0.8",
+    "anndata",
+    "dask",
+    "geopandas",
+    "numpy",
+    "pandas",
+    "pillow",
+    "pyarrow",
+    "scipy",
+    "shapely>=2",
+    "tifffile",
+    "tqdm",
+    "zarr",
+]
+
+[project.optional-dependencies]
+plot = ["spatialdata-plot", "matplotlib"]
+napari = ["napari-spatialdata", "napari[pyqt5]", "scanpy"]
+he = ["scikit-image"]
+all = ["frzspatial[plot,napari,he]"]
+test = ["pytest", "frzspatial[plot]"]
+docs = ["mkdocs-material", "mkdocstrings[python]"]
+
+[project.scripts]
+frzspatial = "frzspatial.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/franzake/frzspatial"
+Documentation = "https://franzake.github.io/frzspatial"
+Issues = "https://github.com/franzake/frzspatial/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/frzspatial"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning", "ignore::UserWarning"]
