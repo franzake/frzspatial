@@ -14,6 +14,10 @@
 
 ::: frzspatial.annotate
 
+## QC
+
+::: frzspatial.qc
+
 ## Plots
 
 ::: frzspatial.pl

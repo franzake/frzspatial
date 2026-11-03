@@ -12,6 +12,7 @@ cores stitched into one image, plots, and hand annotation of regions in napari t
 - **Annotate** regions (glomeruli, arteries, ...) or single cells in napari; polygons are saved as GeoJSON after
   every change and each cell gets the class of the polygon around its centroid (`annotate_core`,
   `annotations_to_obs`).
+- **QC**: regional signal-to-background ratio per cell (`compute_sbr`).
 - **Register** a whole-slide H&E onto the cells from tissue shape alone (`frzspatial.he`).
 - **Export** count matrices and metadata as plain files for a Seurat object in R (`write_seurat_inputs`).
 

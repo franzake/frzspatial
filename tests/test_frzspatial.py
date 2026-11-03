@@ -127,3 +127,18 @@ def test_plots(sdata):
     assert plot_core(sdata, "C1R1", genes={"G1": "magenta"}) is not None
     assert plot_core(sdata, "C1R1", color="manual_annotation", palette=pal) is not None
     assert plot_slide_overview(sdata, "core_str", dpi=50) is not None
+
+
+def test_compute_sbr(sdata):
+    import anndata as ad
+    import scipy.sparse as sp
+    from types import SimpleNamespace
+
+    t = sdata.tables["table"]
+    X = sp.hstack([t.X, sp.csr_matrix(np.ones((t.n_obs, 2)))]).tocsr()  # two negative probes, 1 count each
+    t2 = ad.AnnData(X, obs=t.obs.copy(), var=pd.DataFrame(index=list(t.var_names) + ["Negative1", "Negative2"]))
+    sbr = fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=0.005)
+    assert np.isfinite(sbr).all() and (sbr > 0).all()
+    assert {"SBR", "log2SBR", "flag_sbr"} <= set(t2.obs)
+    alone = fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=1e-6)  # no neighbours: own counts
+    assert np.allclose(alone, np.asarray(t.X.mean(axis=1)).ravel())
