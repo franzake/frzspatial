@@ -8,10 +8,11 @@ frzspatial.annotate  annotations_to_obs and GeoJSON helpers (no napari needed)
 frzspatial.pl        plot_slide_overview, plot_core, annotation_palette
 frzspatial.viewer    open_napari, annotate_core (loads Qt)
 frzspatial.he        register_he, add_he_image: H&E registration
-frzspatial.qc        compute_sbr: regional signal-to-background ratio
+frzspatial.qc        compute_sbr, fov_integrity: regional signal-to-background ratio, FOV signal loss
+frzspatial.tma       key_matrix, assign_cores, plot_core_grid, cases, add_clinical: TMA cores and case metadata
 frzspatial.export    write_seurat_inputs: plain files for a Seurat object
 
-The functions of io, core, annotate, qc and export are also available at the top level, e.g. ``frzspatial.load_slides``.
+The functions of io, core, annotate, qc, tma and export are also available at the top level, e.g. ``frzspatial.load_slides``.
 ``pl``, ``viewer`` and ``he`` are imported on demand, since they are slow to import (``viewer`` loads Qt).
 
 Use ``help(frzspatial.load_slides)`` (or any function) for its documentation.
@@ -24,7 +25,8 @@ from ._utils import PX_UM
 from .annotate import annotation_file, annotations_to_obs, read_annotations, write_annotations
 from .core import build_core, coordinate_system, core_box
 from .export import write_seurat_inputs
-from .qc import compute_sbr
+from .qc import compute_sbr, fov_integrity, panel_barcodes
+from .tma import add_clinical, assign_cores, cases, key_matrix, plot_core_grid
 from .io import add_slide_view, build_sdata, load_slides, save_table
 
 try:
@@ -41,15 +43,22 @@ def set_verbose(verbose=True):
 __all__ = [
     "PX_UM",
     "__version__",
+    "add_clinical",
     "add_slide_view",
+    "assign_cores",
     "annotation_file",
     "annotations_to_obs",
     "build_core",
     "build_sdata",
+    "cases",
     "compute_sbr",
     "coordinate_system",
     "core_box",
+    "fov_integrity",
+    "key_matrix",
     "load_slides",
+    "panel_barcodes",
+    "plot_core_grid",
     "read_annotations",
     "save_table",
     "set_verbose",

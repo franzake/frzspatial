@@ -43,6 +43,7 @@ Tested with Python 3.12, spatialdata 0.8.0, spatialdata-plot 0.4.3, napari 0.9.2
 
 ```python
 import frzspatial as fs
+import pandas as pd
 
 # Each slide's export is in data/<slide>_inputs/ (flatFiles/, CellComposite/, CellLabels/)
 slides = fs.load_slides(["MN2", "MN3"], input_dir="data", zarr_dir="data/zarr", cache_dir="data/cache")
@@ -51,13 +52,16 @@ sdata = slides["MN2"]
 
 The first call builds and saves `data/zarr/MN2_flat.zarr` (minutes); later calls only open it (seconds).
 
-Cores need an obs column with each cell's core name (`core_str` by default) and, for annotations, its slide name
-(`slide`):
+Cores come from the TMA key (rows and columns oriented like the slide), then QC and case metadata:
 
 ```python
-obs = sdata.tables["table"].obs
-obs["slide"] = "MN2"
-obs["core_str"] = ...  # e.g. from your TMA key
+key = fs.key_matrix(pd.read_csv("MN2_key.csv", sep=";"))  # key[r - 1, c - 1] = sample of core C<c>R<r>
+fovs = fs.assign_cores(sdata, key, "MN2", fov_overrides={93: "C4R1"})  # obs core_str, sample_id
+fs.plot_core_grid(fovs, "row", sdata=sdata)                # check the orientation
+fs.fov_integrity(sdata, "Hs_6k", slide="MN2")              # obs flag_fov_integrity, fov_signal_loss
+fs.compute_sbr(sdata)                                      # obs SBR, flag_sbr
+fs.add_clinical(sdata, "MN2", fs.cases("MN2", ["S-1", "S-2"], ["PLA2R", "Normal"]))  # obs slide, group, ...
+
 
 # Plots
 import matplotlib.pyplot as plt

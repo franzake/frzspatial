@@ -142,3 +142,62 @@ def test_compute_sbr(sdata):
     assert {"SBR", "log2SBR", "flag_sbr"} <= set(t2.obs)
     alone = fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=1e-6)  # no neighbours: own counts
     assert np.allclose(alone, np.asarray(t.X.mean(axis=1)).ravel())
+
+
+def test_key_matrix_and_clinical(sdata):
+    from frzspatial import add_clinical, cases, key_matrix
+
+    key = key_matrix(pd.DataFrame([[37128.0, None]]))
+    assert key.tolist() == [["37128", "control1"]]
+    obs = sdata.tables["table"].obs
+    obs["sample_id"] = pd.Categorical(np.where(obs["fov"] == 1, "37128", "control1"))
+    clinical = cases("S1", ["37128"], "PLA2R")
+    add_clinical(sdata, "S1", clinical, ["S1", "S2"])
+    assert obs.loc[obs["fov"] == 1, "group"].eq("MN").all() and obs.loc[obs["fov"] == 2, "group"].isna().all()
+    assert list(obs["slide"].cat.categories) == ["S1", "S2"] and obs["core_id"].iloc[0] == "S1_C1R1"
+
+
+def test_assign_cores(sdata):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from frzspatial import assign_cores, key_matrix, plot_core_grid
+
+    sdata.tables["table"].obs = sdata.tables["table"].obs.drop(columns=["core_str"])
+    obs = sdata.tables["table"].obs
+    fovs = assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100)
+    assert fovs.set_index("fov")["core_str"].to_dict() == {1: "C1R1", 2: "C2R1"}
+    assert obs.groupby("fov", observed=True)["sample_id"].first().astype(str).to_dict() == {1: "A", 2: "B"}
+    fovs = assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100, fov_overrides={2: "C1R1"})
+    assert set(obs["sample_id"]) == {"A"} and set(obs["core_col"]) == {1.0}
+    plot_core_grid(fovs, "column", sdata=sdata)
+
+
+def test_fov_integrity():
+    import anndata as ad
+    import scipy.sparse as sp
+    from frzspatial import fov_integrity, panel_barcodes
+
+    # 6 FOVs of 7 x 7 squares, 12 cells each; FOV 0 keeps 10% of the counts
+    rng = np.random.default_rng(0)
+    genes = panel_barcodes("Hs_6k")["gene"][:300].tolist() + ["NegPrb1"]
+    rows = []
+    for f in range(6):
+        for gx in range(7):
+            for gy in range(7):
+                for _ in range(12):
+                    rows.append((f, f * 10000 + gx * 600 + rng.uniform(50, 550), gy * 600 + rng.uniform(50, 550)))
+    obs = pd.DataFrame(rows, columns=["fov", "CenterX_global_px", "CenterY_global_px"])
+    lam = np.where(obs["fov"].to_numpy()[:, None] == 0, 0.1, 1.0) * rng.uniform(0.5, 3, len(genes))[None, :]
+    X = sp.csr_matrix(rng.poisson(lam))
+    obs.index = obs.index.astype(str)
+    table = ad.AnnData(X=X, obs=obs, var=pd.DataFrame(index=genes))
+
+    class Slide:
+        tables = {"table": table}
+
+    res = fov_integrity(Slide, slide="T")
+    assert res["flagged_totalcounts"] == ["T0"] and res["flagged"][0] == "T0"
+    assert table.obs.loc[table.obs["fov"] == 0, "flag_fov_integrity"].all()
+    assert not table.obs.loc[table.obs["fov"] != 0, "flag_fov_totalcounts"].any()
+    assert str(table.obs["fov_signal_loss_cat"].iloc[0]) == "<-2"

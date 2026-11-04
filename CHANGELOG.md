@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-11-03)
+
+- `frzspatial.tma`: `key_matrix`, `assign_cores` (gbspatial's `assign_fovs_to_cores()`, with manual FOV fixes),
+  `plot_core_grid` (orientation check), `cases` and `add_clinical`.
+- `fov_integrity` (gbspatial's `runFOVQC()`) and `panel_barcodes` (the panels' reporter barcodes) in `frzspatial.qc`.
+- Both identical to the R versions on four kidney TMA slides (cores, samples and flagged FOVs cell for cell; signal
+  loss within 1e-15).
+
 ## 0.1.2 (2026-11-03)
 
 - Intel Macs: numba < 0.63 and llvmlite < 0.46 (the newest with Intel Mac wheels) instead of fixed versions; numpy

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "frzspatial"
-version = "0.1.2"
+version = "0.2.0"
 description = "CosMx (AtoMx) exports to SpatialData: fast loading, stitched cores, plots and napari annotation"
 readme = "README.md"
 license = "MIT"

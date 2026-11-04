@@ -10,6 +10,10 @@
 
 ::: frzspatial.core
 
+## TMA cores and case metadata
+
+::: frzspatial.tma
+
 ## Annotations
 
 ::: frzspatial.annotate
