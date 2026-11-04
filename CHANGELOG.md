@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 (2026-11-03)
+
+- Intel Macs: numba < 0.63 and llvmlite < 0.46 (the newest with Intel Mac wheels) instead of fixed versions; numpy
+  follows numba's own limit.
+- ARM Linux: napari without PyQt5 (no wheels there), so the install no longer fails.
+- Install notes per platform in the README.
+
 ## 0.1.1 (2026-11-03)
 
 - Intel Macs: numba 0.61.2, llvmlite 0.44.0 and numpy < 2.3 are pinned automatically (newer llvmlite has no wheels).

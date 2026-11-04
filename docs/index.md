@@ -30,8 +30,12 @@ From R with reticulate:
 reticulate::py_require("frzspatial @ git+https://github.com/franzake/frzspatial")
 ```
 
-On Intel Macs (x86_64) the install pins numba 0.61.2, llvmlite 0.44.0 and numpy < 2.3 by itself: newer llvmlite
-has no wheels there and fails to build. napari stays < 0.10, the last versions that work with PyQt5.
+It installs from wheels only (nothing to compile) on Linux, Windows and macOS 14+, with Python 3.12 to 3.14:
+
+- **Intel Macs**: numba and llvmlite are kept at 0.62 / 0.45, the last versions with Intel Mac wheels. Use Python
+  3.12 or 3.13 there: numba has no Intel Mac wheels for Python 3.14.
+- **napari** stays < 0.10, the last versions that work with PyQt5. On ARM Linux, where PyQt5 has no wheels, napari is
+  installed without a Qt backend (`pip install pyqt6` to open windows).
 
 Tested with Python 3.12, spatialdata 0.8.0, spatialdata-plot 0.4.3, napari 0.9.2 and napari-spatialdata 0.7.2.
 
