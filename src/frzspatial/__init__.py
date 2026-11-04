@@ -2,10 +2,10 @@
 
 Modules
 -------
-frzspatial.io        build_sdata, load_slides, save_table: AtoMx flat files to SpatialData and back to zarr
+frzspatial.io        build_sdata, load_slides, save_table, slide_with_cells: AtoMx flat files to SpatialData
 frzspatial.core      build_core, core_box: a core or slide stitched into one image and mask
 frzspatial.annotate  annotations_to_obs and GeoJSON helpers (no napari needed)
-frzspatial.pl        plot_slide_overview, plot_core, annotation_palette
+frzspatial.pl        plot_slide_overview, plot_core, plot_annotations, annotation_palette
 frzspatial.viewer    open_napari, annotate_core (loads Qt)
 frzspatial.he        register_he, add_he_image: H&E registration
 frzspatial.qc        compute_sbr, fov_integrity: regional signal-to-background ratio, FOV signal loss
@@ -27,7 +27,7 @@ from .core import build_core, coordinate_system, core_box
 from .export import write_seurat_inputs
 from .qc import compute_sbr, fov_integrity, panel_barcodes
 from .tma import add_clinical, assign_cores, cases, key_matrix, plot_core_grid
-from .io import add_slide_view, build_sdata, load_slides, save_table
+from .io import add_slide_view, build_sdata, load_slides, save_table, slide_with_cells
 
 try:
     __version__ = version("frzspatial")
@@ -62,6 +62,7 @@ __all__ = [
     "read_annotations",
     "save_table",
     "set_verbose",
+    "slide_with_cells",
     "write_annotations",
     "write_seurat_inputs",
 ]

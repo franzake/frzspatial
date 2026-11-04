@@ -66,6 +66,7 @@ __all__ = [
     "build_sdata",
     "load_slides",
     "save_table",
+    "slide_with_cells",
     "add_slide_view",
     "read_table",
     "read_polygons",
@@ -487,4 +488,40 @@ def save_table(sdata, table="table"):
     """
     sdata.delete_element_from_disk(table)
     sdata.write_element(table)
+
+
+def slide_with_cells(sdata, other, slide, table="table"):
+    """One slide's images, masks and transcripts with the cells of a merged object instead of its own.
+
+    For viewing later results (e.g. cell types or niches computed on merged, resegmented slides) on a single slide:
+    the merged object's polygons ``cell_boundaries-<slide>`` and table rows with ``obs["slide"] == slide``, with all
+    their obs columns, moved back to the slide's ``global`` coordinate system. The result works with
+    :func:`frzspatial.build_core` and :func:`frzspatial.viewer.annotate_core`.
+
+    Parameters
+    ----------
+    sdata
+        The single slide (from :func:`load_slides`).
+    other
+        The merged object: elements suffixed ``-<slide>``, table with a ``slide`` column and ``cell`` instance key.
+    slide
+        Slide name.
+    table
+        Table element of `other`.
+
+    Returns
+    -------
+    SpatialData
+        The masks still hold the original segmentation, so cells split later have no mask.
+    """
+    shp = other.shapes[f"cell_boundaries-{slide}"]
+    shp = ShapesModel.parse(gpd.GeoDataFrame(geometry=shp.geometry.to_numpy(), index=shp.index))  # identity to global
+    tb = other.tables[table]
+    t = tb[(tb.obs["slide"].astype(str) == slide).to_numpy()].copy()
+    t.obs["region"] = pd.Categorical(["cell_boundaries"] * t.n_obs)
+    t.uns.pop("spatialdata_attrs", None)
+    return SpatialData(
+        images=dict(sdata.images), labels=dict(sdata.labels), points=dict(sdata.points),
+        shapes={"cell_boundaries": shp},
+        tables={"table": TableModel.parse(t, region="cell_boundaries", region_key="region", instance_key="cell")})
 

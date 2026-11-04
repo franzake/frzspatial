@@ -4,6 +4,7 @@
 
 - `frzspatial.tma`: `key_matrix`, `assign_cores` (gbspatial's `assign_fovs_to_cores()`, with manual FOV fixes),
   `plot_core_grid` (orientation check), `cases` and `add_clinical`.
+- `slide_with_cells` (later results, e.g. niches, on a single slide) and `frzspatial.pl.plot_annotations`.
 - `fov_integrity` (gbspatial's `runFOVQC()`) and `panel_barcodes` (the panels' reporter barcodes) in `frzspatial.qc`.
 - Both identical to the R versions on four kidney TMA slides (cores, samples and flagged FOVs cell for cell; signal
   loss within 1e-15).

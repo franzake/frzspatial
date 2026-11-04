@@ -7,7 +7,7 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 
 from .core import core_box
 
-__all__ = ["plot_slide_overview", "plot_core", "annotation_palette"]
+__all__ = ["plot_slide_overview", "plot_core", "annotation_palette", "plot_annotations"]
 
 
 def plot_slide_overview(sdata, color, title=None, figsize=(12, 20), dpi=200, fontsize=8):
@@ -119,3 +119,29 @@ def annotation_palette(classes, used=None):
         present = set(used.dropna().astype(str))
         pal = {c: v for c, v in pal.items() if c in present}
     return pal
+
+
+def plot_annotations(sdata, classes, column="manual_annotation", title="", core_key="core_str"):
+    """Each annotated core, its cells filled by class in the colours of the napari layers.
+
+    To check which cells each drawn polygon took. Shows one figure per core with annotated cells.
+
+    Parameters
+    ----------
+    sdata
+        A single slide, after :func:`frzspatial.annotations_to_obs`.
+    classes
+        The annotation classes, in the order given to :func:`frzspatial.viewer.annotate_core`.
+    column
+        obs column of the annotations.
+    title
+        Prefix of each figure's title (e.g. the slide name).
+    """
+    import matplotlib.pyplot as plt
+
+    obs = sdata.tables["table"].obs
+    palette = annotation_palette(classes, used=obs[column])
+    for core in obs.loc[obs[column].notna(), core_key].unique():
+        plot_core(sdata, core, color=column, palette=palette, title=f"{title} {core}: {column}".strip(),
+                  core_key=core_key)
+        plt.show()

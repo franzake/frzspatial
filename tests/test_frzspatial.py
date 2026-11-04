@@ -201,3 +201,30 @@ def test_fov_integrity():
     assert table.obs.loc[table.obs["fov"] == 0, "flag_fov_integrity"].all()
     assert not table.obs.loc[table.obs["fov"] != 0, "flag_fov_totalcounts"].any()
     assert str(table.obs["fov_signal_loss_cat"].iloc[0]) == "<-2"
+
+
+def test_slide_with_cells_and_plot_annotations(sdata, tmp_path):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from spatialdata import SpatialData
+    from spatialdata.models import TableModel
+    from frzspatial import annotations_to_obs, slide_with_cells, write_annotations
+    from frzspatial.pl import plot_annotations
+
+    # a "merged" object: suffixed shapes, a table annotating them, one extra column
+    t = sdata.tables["table"].copy()
+    t.obs["region"] = pd.Categorical(["cell_boundaries-S1"] * t.n_obs)
+    t.obs["niche"] = pd.Categorical(np.where(t.obs["fov"] == 1, "n1", "n2"))
+    t.uns.pop("spatialdata_attrs", None)
+    merged = SpatialData(shapes={"cell_boundaries-S1": sdata.shapes["cell_boundaries"]},
+                         tables={"table": TableModel.parse(t, region="cell_boundaries-S1", region_key="region",
+                                                           instance_key="cell")})
+    s = slide_with_cells(sdata, merged, "S1")
+    assert "cell_boundaries" in s.shapes and s.tables["table"].obs["niche"].tolist() == t.obs["niche"].tolist()
+    import geopandas as gpd, shapely
+
+    write_annotations(gpd.GeoDataFrame({"class": ["Glomerulus"]}, geometry=[shapely.box(1000, 2000, 1100, 2100)]),
+                      tmp_path / "S1_C1R1.geojson")
+    annotations_to_obs(s, ["Glomerulus"], tmp_path)
+    plot_annotations(s, ["Glomerulus"], title="S1")
