@@ -1,0 +1,792 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="CosMx (AtoMx) exports to SpatialData, stitched TMA cores, plots and napari annotation">
+      
+      
+      
+      
+      
+        <link rel="next" href="annotation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>frzspatial</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#frzspatial" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="frzspatial" class="md-header__button md-logo" aria-label="frzspatial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            frzspatial
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/franzake/frzspatial" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="frzspatial" class="md-nav__button md-logo" aria-label="frzspatial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    frzspatial
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/franzake/frzspatial" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotating-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotating regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merged-slides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merged slides
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="annotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotation in napari
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#annotating-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotating regions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merged-slides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merged slides
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="frzspatial">frzspatial</h1>
+<p>CosMx (AtoMx) exports to <a href="https://spatialdata.scverse.org">SpatialData</a>, for TMA slides: fast loading and caching,
+cores stitched into one image, plots, and hand annotation of regions in napari that ends up as a cell-level column.</p>
+<ul>
+<li><strong>Read</strong> an AtoMx flat-file export (counts, metadata, polygons, transcripts, per-FOV composites and masks) into one
+  SpatialData object in AtoMx global pixels: in parallel, with transcripts cached as Parquet and images read lazily.</li>
+<li><strong>Reopen</strong> saved slides in seconds (<code>load_slides</code>), building only the missing ones, with a progress bar.</li>
+<li><strong>Stitch</strong> a TMA core, or a whole slide at reduced resolution, into one composite and one mask layer for napari
+  (<code>build_core</code>).</li>
+<li><strong>Plot</strong> a slide overview or one core with its outlines, transcripts or any obs column (<code>frzspatial.pl</code>).</li>
+<li><strong>Annotate</strong> regions (glomeruli, arteries, ...) or single cells in napari; polygons are saved as GeoJSON after
+  every change and each cell gets the class of the polygon around its centroid (<code>annotate_core</code>,
+  <code>annotations_to_obs</code>).</li>
+<li><strong>QC</strong>: regional signal-to-background ratio per cell (<code>compute_sbr</code>).</li>
+<li><strong>Register</strong> a whole-slide H&amp;E onto the cells from tissue shape alone (<code>frzspatial.he</code>).</li>
+<li><strong>Export</strong> count matrices and metadata as plain files for a Seurat object in R (<code>write_seurat_inputs</code>).</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"git+https://github.com/franzake/frzspatial"</span>
+</code></pre></div>
+<p>This installs everything: plotting (spatialdata-plot), napari with PyQt5, and H&amp;E registration (scikit-image).</p>
+<p>From R with reticulate:</p>
+<div class="highlight"><pre><span></span><code><span class="n">reticulate</span><span class="o">::</span><span class="nf">py_require</span><span class="p">(</span><span class="s">"frzspatial @ git+https://github.com/franzake/frzspatial"</span><span class="p">)</span>
+</code></pre></div>
+<p>It installs from wheels only (nothing to compile) on Linux, Windows and macOS 14+, with Python 3.12 to 3.14:</p>
+<ul>
+<li><strong>Intel Macs</strong>: numba and llvmlite are kept at 0.62 / 0.45, the last versions with Intel Mac wheels. Use Python
+  3.12 or 3.13 there: numba has no Intel Mac wheels for Python 3.14.</li>
+<li><strong>napari</strong> stays &lt; 0.10, the last versions that work with PyQt5. On ARM Linux, where PyQt5 has no wheels, napari is
+  installed without a Qt backend (<code>pip install pyqt6</code> to open windows).</li>
+</ul>
+<p>Tested with Python 3.12, spatialdata 0.8.0, spatialdata-plot 0.4.3, napari 0.9.2 and napari-spatialdata 0.7.2.</p>
+<h2 id="quick-start">Quick start</h2>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">frzspatial</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fs</span>
+
+<span class="c1"># Each slide's export is in data/&lt;slide&gt;_inputs/ (flatFiles/, CellComposite/, CellLabels/)</span>
+<span class="n">slides</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">load_slides</span><span class="p">([</span><span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"MN3"</span><span class="p">],</span> <span class="n">input_dir</span><span class="o">=</span><span class="s2">"data"</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="o">=</span><span class="s2">"data/zarr"</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="s2">"data/cache"</span><span class="p">)</span>
+<span class="n">sdata</span> <span class="o">=</span> <span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">]</span>
+</code></pre></div>
+<p>The first call builds and saves <code>data/zarr/MN2_flat.zarr</code> (minutes); later calls only open it (seconds).</p>
+<p>Cores need an obs column with each cell's core name (<code>core_str</code> by default) and, for annotations, its slide name
+(<code>slide</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="n">obs</span> <span class="o">=</span> <span class="n">sdata</span><span class="o">.</span><span class="n">tables</span><span class="p">[</span><span class="s2">"table"</span><span class="p">]</span><span class="o">.</span><span class="n">obs</span>
+<span class="n">obs</span><span class="p">[</span><span class="s2">"slide"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"MN2"</span>
+<span class="n">obs</span><span class="p">[</span><span class="s2">"core_str"</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span>  <span class="c1"># e.g. from your TMA key</span>
+
+<span class="c1"># Plots</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">frzspatial.pl</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_core</span><span class="p">,</span> <span class="n">plot_slide_overview</span>
+
+<span class="n">plot_slide_overview</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="s2">"core_str"</span><span class="p">);</span> <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="n">plot_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="p">{</span><span class="s2">"NPHS2"</span><span class="p">:</span> <span class="s2">"magenta"</span><span class="p">,</span> <span class="s2">"LRP2"</span><span class="p">:</span> <span class="s2">"orange"</span><span class="p">});</span> <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># napari: one core at full resolution, or the whole slide (core=None) at 1/8</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">frzspatial.viewer</span><span class="w"> </span><span class="kn">import</span> <span class="n">open_napari</span>
+<span class="n">open_napari</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">build_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">))</span>
+</code></pre></div>
+<h3 id="annotating-regions">Annotating regions</h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">frzspatial.viewer</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotate_core</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">frzspatial.pl</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotation_palette</span><span class="p">,</span> <span class="n">plot_core</span>
+
+<span class="n">CLASSES</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Glomerulus"</span><span class="p">,</span> <span class="s2">"Sclerotic_glomerulus"</span><span class="p">,</span> <span class="s2">"Tubulointerstitium"</span><span class="p">,</span> <span class="s2">"Artery"</span><span class="p">,</span> <span class="s2">"Inflammation"</span><span class="p">,</span> <span class="s2">"Exclude"</span><span class="p">]</span>
+<span class="n">annotate_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">CLASSES</span><span class="p">)</span>     <span class="c1"># opens napari; returns when the window is closed</span>
+
+<span class="n">obs</span> <span class="o">=</span> <span class="n">sdata</span><span class="o">.</span><span class="n">tables</span><span class="p">[</span><span class="s2">"table"</span><span class="p">]</span><span class="o">.</span><span class="n">obs</span>
+<span class="n">obs</span><span class="p">[</span><span class="s2">"manual_annotation"</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+<span class="n">plot_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"manual_annotation"</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="n">annotation_palette</span><span class="p">(</span><span class="n">CLASSES</span><span class="p">,</span> <span class="n">obs</span><span class="p">[</span><span class="s2">"manual_annotation"</span><span class="p">]))</span>
+
+<span class="n">fs</span><span class="o">.</span><span class="n">save_table</span><span class="p">(</span><span class="n">sdata</span><span class="p">)</span>                             <span class="c1"># store the new column in MN2_flat.zarr</span>
+</code></pre></div>
+<p>In napari, click the <code>annot: &lt;class&gt;</code> layer of a class, then draw:</p>
+<table>
+<thead>
+<tr>
+<th>To do</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>draw a region</td>
+<td><strong>P</strong> (polygon), click around it, double-click to close</td>
+</tr>
+<tr>
+<td>mark single cells</td>
+<td>zoom in, <strong>R</strong> (rectangle), drag a small box over the cell's centre</td>
+</tr>
+<tr>
+<td>move or delete a shape</td>
+<td><strong>5</strong> (select), click it, then drag or press Backspace</td>
+</tr>
+<tr>
+<td>colour the outlines</td>
+<td>select <code>cell_boundaries</code>, pick a column in the <em>View</em> panel</td>
+</tr>
+</tbody>
+</table>
+<p>Each change is saved to <code>results/annotations/&lt;slide&gt;_&lt;core&gt;.geojson</code>. Close the window with its own close button.
+When Python runs inside R or Jupyter, <strong>don't quit with Cmd-Q</strong>: it quits the host's Qt loop and can hang it, and
+force-quitting the window kills the host. Rerunning <code>annotate_core</code> on the same core reopens its shapes for
+editing; <code>fs.annotations_to_obs(sdata, CLASSES)</code> rebuilds the column from the files at any time.</p>
+<h3 id="merged-slides">Merged slides</h3>
+<p>After <code>spatialdata.concatenate</code> with each slide's elements suffixed <code>-&lt;slide&gt;</code> and in coordinate system
+<code>global-&lt;slide&gt;</code>, the same functions take the merged object and a slide name:</p>
+<div class="highlight"><pre><span></span><code><span class="n">open_napari</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">build_core</span><span class="p">(</span><span class="n">merged</span><span class="p">,</span> <span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="p">{</span><span class="s2">"cell_type"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"Podocyte"</span><span class="p">:</span> <span class="s2">"#e377c2"</span><span class="p">,</span> <span class="o">...</span><span class="p">}}))</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">annotations_to_obs</span><span class="p">(</span><span class="n">merged</span><span class="p">,</span> <span class="n">CLASSES</span><span class="p">)</span>  <span class="c1"># every slide's files, matched on obs["slide"] and obs["core_str"]</span>
+</code></pre></div>
+<h2 id="command-line">Command line</h2>
+<div class="highlight"><pre><span></span><code>frzspatial<span class="w"> </span>build<span class="w"> </span>data/MN2_inputs<span class="w"> </span>MN2<span class="w"> </span>-o<span class="w"> </span>MN2_flat.zarr<span class="w"> </span>--cache-dir<span class="w"> </span>cache
+frzspatial<span class="w"> </span>info<span class="w"> </span>MN2_flat.zarr
+frzspatial<span class="w"> </span>view<span class="w"> </span>MN2_flat.zarr<span class="w"> </span>--slide<span class="w"> </span>MN2<span class="w"> </span>--core<span class="w"> </span>C4R7
+frzspatial<span class="w"> </span>view<span class="w"> </span>MN2_flat.zarr<span class="w"> </span>--slide<span class="w"> </span>MN2<span class="w"> </span>--core<span class="w"> </span>C4R7<span class="w"> </span>--annotate<span class="w"> </span>Glomerulus<span class="w"> </span>Artery
+</code></pre></div>
+<p><code>frzspatial &lt;command&gt; --help</code> lists every option.</p>
+<h2 id="help">Help</h2>
+<p>Every function has a docstring: <code>help(fs.build_core)</code>, or <code>fs.build_core?</code> in IPython. The module docstrings
+(<code>help(frzspatial.io)</code>, <code>help(frzspatial.core)</code>) describe the expected export layout and coordinate systems. The
+full reference is at <a href="https://franzake.github.io/frzspatial">https://franzake.github.io/frzspatial</a>, or build it locally with
+<code>pip install "frzspatial[docs]" &amp;&amp; mkdocs serve</code>.</p>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li>Positions are AtoMx global px (0.120280945 µm/px, <code>fs.PX_UM</code>); each FOV is placed with
+  <code>x = dx + col</code>, <code>y = cy - row</code>, so FOVs stitch without resampling.</li>
+<li>Cells are named by AtoMx's <code>cell</code> (<code>c_&lt;slide_ID&gt;_&lt;fov&gt;_&lt;cell_ID&gt;</code>).</li>
+<li><code>fs.set_verbose(False)</code> silences the progress messages.</li>
+</ul>
+<h2 id="development">Development</h2>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/franzake/frzspatial<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>frzspatial
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[test,docs]"</span>
+pytest
+</code></pre></div>
+<p>The tests build a small synthetic AtoMx export, so they need no data.</p>
+<h2 id="license">License</h2>
+<p>MIT</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,4150 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="CosMx (AtoMx) exports to SpatialData, stitched TMA cores, plots and napari annotation">
+      
+      
+      
+      
+        <link rel="prev" href="../annotation/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>API reference - frzspatial</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="frzspatial" class="md-header__button md-logo" aria-label="frzspatial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            frzspatial
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/franzake/frzspatial" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="frzspatial" class="md-nav__button md-logo" aria-label="frzspatial" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    frzspatial
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/franzake/frzspatial" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotation in napari
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reading-and-saving" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading and saving
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        io
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.build_sdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_sdata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.load_slides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_slides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.save_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save_table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.add_slide_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_slide_view
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_polygons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_polygons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.transcripts_parquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transcripts_parquet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_transcripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_transcripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_images_labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_images_labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.flat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        flat
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.coordinate_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        coordinate_system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.core_box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core_box
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.build_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.annotation_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.read_annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.write_annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.annotations_to_obs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotations_to_obs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.qc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qc
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.qc.compute_sbr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_sbr
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pl
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.plot_slide_overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_slide_overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.plot_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.annotation_palette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_palette
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#napari" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        napari
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        viewer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.patch_anndata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        patch_anndata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.open_napari" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_napari
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.annotate_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#he-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H&amp;E registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        he
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he.register_he" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_he
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he.add_he_image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_he_image
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.export.write_seurat_inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_seurat_inputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#reading-and-saving" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading and saving
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        io
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.build_sdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_sdata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.load_slides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_slides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.save_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save_table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.add_slide_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_slide_view
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_polygons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_polygons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.transcripts_parquet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transcripts_parquet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_transcripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_transcripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.read_images_labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_images_labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.io.flat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        flat
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.coordinate_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        coordinate_system
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.core_box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        core_box
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.core.build_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.annotation_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.read_annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.write_annotations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_annotations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.annotate.annotations_to_obs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotations_to_obs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.qc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qc
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.qc.compute_sbr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_sbr
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pl
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.plot_slide_overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_slide_overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.plot_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.pl.annotation_palette" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotation_palette
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#napari" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        napari
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        viewer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.patch_anndata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        patch_anndata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.open_napari" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        open_napari
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.viewer.annotate_core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        annotate_core
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#he-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        H&amp;E registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        he
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he.register_he" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        register_he
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.he.add_he_image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        add_he_image
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#frzspatial.export.write_seurat_inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        write_seurat_inputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="api-reference">API reference</h1>
+<h2 id="reading-and-saving">Reading and saving</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.io"></a>
+    <div class="doc doc-contents first">
+
+        <p>Read CosMx AtoMx flat-file exports into SpatialData, in AtoMx global pixels.</p>
+<p>An AtoMx export folder (<code>&lt;inputs&gt;</code>) is expected to look like::</p>
+<div class="highlight"><pre><span></span><code>&lt;inputs&gt;/
+  flatFiles/&lt;id&gt;_metadata_file.csv[.gz]
+  flatFiles/&lt;id&gt;_exprMat_file.csv[.gz]
+  flatFiles/&lt;id&gt;-polygons.csv[.gz]
+  flatFiles/&lt;id&gt;_tx_file.csv[.gz]
+  CellComposite/CellComposite_F00001.jpg ...
+  CellLabels/CellLabels_F00001.tif ...
+  Morphology2D/*_F00001.TIF ...              (optional)
+</code></pre></div>
+<p>where <code>&lt;id&gt;</code> is the dataset id (usually the slide name). :func:<code>build_sdata</code> turns it into one SpatialData
+object with these elements, all in the <code>"global"</code> coordinate system:</p>
+<p>=====================  ==============================================================================
+<code>table</code>              counts (sparse int32) and cell metadata; cells named by <code>cell</code> (<code>c_&lt;slide&gt;_&lt;fov&gt;_&lt;id&gt;</code>)
+<code>cell_boundaries</code>    one polygon per cell
+<code>transcripts</code>        lazy points from a Parquet cache (x, y, z_raw, target, cell, CellComp, fov)
+<code>fov&lt;N&gt;_image</code>       CellComposite of each FOV (lazy)
+<code>fov&lt;N&gt;_labels</code>      CellLabels mask of each FOV (lazy)
+<code>fov&lt;N&gt;_morphology</code>  Morphology2D of each FOV, one channel per marker (optional, lazy)
+=====================  ==============================================================================</p>
+<p>Each FOV is placed with <code>x_global = x_local + dx</code> and <code>y_global = cy - y_local</code> (image row = <code>y_local</code>).</p>
+<p>Speed: gzip is decompressed by <code>pigz</code> in a separate process when it is installed, CSVs are parsed by
+multithreaded pyarrow, transcripts are streamed to Parquet once (reused while newer than the CSV) and read lazily,
+and table, polygons and transcripts are read in parallel.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.build_sdata" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">build_sdata</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">images</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">morphology</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">transcripts</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">flip_y</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Build one SpatialData object from an AtoMx export folder.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>inputs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Export folder holding <code>flatFiles/</code>, <code>CellComposite/</code> and <code>CellLabels/</code> (see the module docs).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cache_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Folder for the transcript Parquet cache (<code>&lt;dataset_id&gt;_tx.parquet</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dataset_id</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Prefix of the flat files, usually the slide name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>images</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Read the per-FOV composites and masks (lazily).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>morphology</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Also read <code>Morphology2D/</code> as <code>fov&lt;N&gt;_morphology</code> (one channel per marker).</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>transcripts</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Read the transcripts (via the Parquet cache).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>threads</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Threads for pigz and the CSV parser.</p>
+              </div>
+            </td>
+            <td>
+                  <code>8</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>flip_y</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Add the <code>"slide"</code> coordinate system, y upwards (:func:<code>add_slide_view</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="spatialdata.SpatialData">SpatialData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Lazy where possible: write it with <code>sdata.write(path)</code> and reopen it with :func:<code>load_slides</code> or
+<code>spatialdata.read_zarr</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">sdata</span> <span class="o">=</span> <span class="n">build_sdata</span><span class="p">(</span><span class="s2">"data/MN2_inputs"</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="s2">"cache"</span><span class="p">,</span> <span class="n">dataset_id</span><span class="o">=</span><span class="s2">"MN2"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sdata</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">"MN2_flat.zarr"</span><span class="p">)</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.load_slides" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">load_slides</span><span class="p">(</span><span class="n">slides</span><span class="p">,</span> <span class="n">input_dir</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">rebuild</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">morphology</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Open several slides, building the missing ones.</p>
+<p>Each slide is reopened from <code>&lt;zarr_dir&gt;/&lt;slide&gt;_flat.zarr</code>. A slide without a zarr is first built from
+<code>&lt;input_dir&gt;/&lt;slide&gt;_inputs</code> with :func:<code>build_sdata</code> and saved there.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>slides</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Slide names, also used as the flat files' dataset ids.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>input_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Folder holding the <code>&lt;slide&gt;_inputs</code> export folders.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>zarr_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Folder of the <code>&lt;slide&gt;_flat.zarr</code> files.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cache_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Transcript Parquet cache, as in :func:<code>build_sdata</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>rebuild</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>True rebuilds every slide; a list rebuilds only those.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>morphology</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Passed to :func:<code>build_sdata</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{slide: SpatialData}</code>. Images and masks are read lazily from the zarr.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>ome_zarr's "no parent found" warnings (one per FOV mask, harmless) are silenced.</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.save_table" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">save_table</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write <code>sdata</code>'s table back into the zarr it was read from (e.g. after adding obs columns).</p>
+<p>spatialdata does not overwrite an element of its own backing zarr, so the table is deleted on disk and written
+again; images, masks, polygons and transcripts on disk are left unchanged. Takes seconds per slide. Do not
+interrupt it: between the two steps the zarr has no table.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.add_slide_view" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">add_slide_view</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'slide'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add a coordinate system <code>name</code>: <code>"global"</code> mirrored in y (<code>y = y_max - y_global</code>).</p>
+<p>spatialdata-plot draws y downwards (the image convention); in this system plots show y upwards, as in the
+AtoMx slide view. <code>"global"</code> itself is left unchanged. Modifies <code>sdata</code> in place and returns it.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.read_table" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_table</span><span class="p">(</span><span class="n">flat_dir</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Cell table: counts joined to the cell metadata on (fov, cell_ID).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>flat_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The export's <code>flatFiles</code> folder.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dataset_id</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Prefix of the flat files (<code>&lt;dataset_id&gt;_metadata_file.csv</code> ...).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="anndata.AnnData">AnnData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sparse int32 counts, the metadata as <code>obs</code> (cells named by <code>cell</code>), centroids in <code>obsm["spatial"]</code>,
+annotating the <code>cell_boundaries</code> shapes.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.read_polygons" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_polygons</span><span class="p">(</span><span class="n">flat_dir</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">cell_names</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Cell outlines, one polygon per cell with at least 3 vertices.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>flat_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>read_table</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dataset_id</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>read_table</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cell_names</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Series of <code>cell</code> names indexed by the (fov, cell_ID) key <code>fov * 2**20 + cell_ID</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Polygons in global px, indexed by <code>cell</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.transcripts_parquet" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">transcripts_parquet</span><span class="p">(</span><span class="n">flat_dir</span><span class="p">,</span> <span class="n">dataset_id</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Stream the transcript CSV to <code>&lt;cache_dir&gt;/&lt;dataset_id&gt;_tx.parquet</code> once.</p>
+<p>The Parquet file is reused while it is newer than the CSV. Columns are renamed <code>x</code>, <code>y</code> and <code>z_raw</code>
+(a <code>z</code> column would be read by spatialdata as a third axis).</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The Parquet file.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.read_transcripts" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_transcripts</span><span class="p">(</span><span class="n">parquet</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Lazy transcript points (dask) from a Parquet cache written by :func:<code>transcripts_parquet</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.read_images_labels" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_images_labels</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">image_dir</span><span class="p">,</span> <span class="n">morphology</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Lazy per-FOV images, placed in global px.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>meta</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cell metadata with <code>fov</code>, <code>CenterX/Y_global_px</code> and <code>CenterX/Y_local_px</code>: each FOV's offset is the
+median over its cells.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>image_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The export folder holding <code>CellComposite/</code>, <code>CellLabels/</code> and <code>Morphology2D/</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>morphology</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Also read the Morphology2D stacks (one channel per marker).</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code>images, labels : dict</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{"fov&lt;N&gt;_image": ..., "fov&lt;N&gt;_morphology": ...}</code> and <code>{"fov&lt;N&gt;_labels": ...}</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.io.flat" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">flat</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Path of the flat file <code>&lt;name&gt;.csv</code> or <code>&lt;name&gt;.csv.gz</code> in <code>folder</code>, whichever exists.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="FileNotFoundError">FileNotFoundError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If neither exists.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="cores">Cores</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.core"></a>
+    <div class="doc doc-contents first">
+
+        <p>Cores of a TMA slide: their bounding box and a stitched, napari-ready SpatialData per core or slide.</p>
+<p>Two kinds of objects are supported everywhere:</p>
+<ul>
+<li>a <strong>single slide</strong> (e.g. one value of :func:<code>frzspatial.load_slides</code>): unsuffixed elements (<code>fov&lt;N&gt;_image</code>,
+  <code>cell_boundaries</code>, <code>transcripts</code>) in the coordinate system <code>"global"</code>;</li>
+<li>a <strong>merged object</strong> (several slides concatenated with <code>spatialdata.concatenate</code>): each slide's elements
+  suffixed <code>-&lt;slide&gt;</code> and in their own coordinate system <code>"global-&lt;slide&gt;"</code>, so slides never overlap.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.core.coordinate_system" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">coordinate_system</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">slide</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>("-&lt;slide&gt;", "global-&lt;slide&gt;")</code> for a merged object, <code>("", "global")</code> for a single slide.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.core.core_box" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">core_box</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">core</span><span class="p">,</span> <span class="n">core_key</span><span class="o">=</span><span class="s1">'core_str'</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Bounding-box query arguments for one core of a single slide: the rectangle around its cells.</p>
+<p>Use as <code>sdata.query.bounding_box(**core_box(sdata, "C4R7"))</code>.</p>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If no cell has <code>obs[core_key] == core</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.core.build_core" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">build_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">core</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">downsample</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">core_key</span><span class="o">=</span><span class="s1">'core_str'</span><span class="p">,</span> <span class="n">slide_key</span><span class="o">=</span><span class="s1">'slide'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>One core, or a whole slide, as a small SpatialData object for napari.</p>
+<p>The core's FOVs are stitched into one composite and one mask layer. FOVs are placed by their AtoMx offsets
+(x = col + dx, y = cy - row) in integer px, so stitching needs no resampling.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide or a merged object (see the module docs).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slide</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Slide name: selects the elements and coordinate system of a merged object, and the cells with
+<code>obs[slide_key] == slide</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>core</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Core name (<code>obs[core_key]</code>), or None for the whole slide.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>table</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Table element name.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;table&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>colors</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{column: {category: colour}}</code>, stored as the table's <code>&lt;column&gt;_colors</code>: napari-spatialdata only colours
+a categorical column reliably with them.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>scale_factors</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pyramid of the image and masks: each level halves.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(2, 2, 2)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>downsample</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Keep every n-th pixel of each FOV (the transformation scales it back to the slide's px). Default 1 for a
+core and 8 for a whole slide (a full-resolution slide is ~40 GB of RGB).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>core_key</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>obs columns of the core and slide names (<code>slide_key</code> is only used for a merged object).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;core_str&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slide_key</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>obs columns of the core and slide names (<code>slide_key</code> is only used for a merged object).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;core_str&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="spatialdata.SpatialData">SpatialData</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>core_image</code> (multiscale RGB), <code>core_labels</code> (each cell's mask value = its integer id in the table and
+polygons), <code>cell_boundaries</code>, <code>transcripts</code> and <code>table</code> (only cells with a polygon, as napari needs one
+shape per row; unused categories dropped; the original names in <code>obs["cell_name"]</code>), in the slide's
+coordinate system. Needs <code>obs["fov"]</code> and <code>obs["slide_ID"]</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">frzspatial.viewer</span><span class="w"> </span><span class="kn">import</span> <span class="n">open_napari</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">open_napari</span><span class="p">(</span><span class="n">build_core</span><span class="p">(</span><span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">],</span> <span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">))</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="annotations">Annotations</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.annotate"></a>
+    <div class="doc doc-contents first">
+
+        <p>Hand annotations: polygons saved as GeoJSON, turned into a cell-level obs column.</p>
+<p>Annotations are stored one file per core in an annotation folder, named <code>&lt;slide&gt;_&lt;core&gt;.geojson</code>
+(<code>&lt;slide&gt;_slide.geojson</code> for shapes drawn on a whole slide), with one <code>class</code> property per polygon and
+coordinates in the slide's global px. They are drawn with :func:<code>frzspatial.viewer.annotate_core</code>, but any GeoJSON
+in that layout works (e.g. exported from QuPath after converting to global px).</p>
+<p>This module does not need napari.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.annotate.annotation_file" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">annotation_file</span><span class="p">(</span><span class="n">annot_dir</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">core</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Path of a core's annotation file: <code>&lt;annot_dir&gt;/&lt;slide&gt;_&lt;core&gt;.geojson</code> (core None: <code>&lt;slide&gt;_slide</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.annotate.read_annotations" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_annotations</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Polygons of one annotation file as a GeoDataFrame (<code>class</code>, <code>geometry</code>), one row per polygon.</p>
+<p>A missing file gives an empty GeoDataFrame; multipolygons are split into polygons.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.annotate.write_annotations" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_annotations</span><span class="p">(</span><span class="n">annot</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Save polygons (GeoDataFrame with <code>class</code> and <code>geometry</code>) to <code>path</code>; an empty one deletes the file.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.annotate.annotations_to_obs" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">annotations_to_obs</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">classes</span><span class="p">,</span> <span class="n">annot_dir</span><span class="o">=</span><span class="s1">'results/annotations'</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s1">'manual_annotation'</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">,</span> <span class="n">slide_key</span><span class="o">=</span><span class="s1">'slide'</span><span class="p">,</span> <span class="n">core_key</span><span class="o">=</span><span class="s1">'core_str'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Label each cell with the class of the annotated polygon around its centroid.</p>
+<p>Every <code>&lt;slide&gt;_&lt;core&gt;.geojson</code> in <code>annot_dir</code> is applied to the cells with <code>obs[slide_key] == slide</code> and
+<code>obs[core_key] == core</code> (all cells of the slide for <code>&lt;slide&gt;_slide.geojson</code>). Files of slides or cores not
+in the table are skipped, so the same folder can serve each slide and a merged object.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide or a merged object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>classes</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Class names in priority order: where polygons overlap, the class later in the list wins.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>annot_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Folder of the GeoJSON files.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;results/annotations&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>obs column to write.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;manual_annotation&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>table</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Table element and its obs columns of slide and core names. Positions are <code>CenterX/Y_global_px</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;table&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slide_key</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Table element and its obs columns of slide and core names. Positions are <code>CenterX/Y_global_px</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;table&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>core_key</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Table element and its obs columns of slide and core names. Positions are <code>CenterX/Y_global_px</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;table&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="Series">Series</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cells per class. <code>obs[column]</code> is set in place: categorical with every class as a category (used or not,
+so that tables annotated separately still share them when merged), NA outside every polygon.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">annotations_to_obs</span><span class="p">(</span><span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">],</span> <span class="p">[</span><span class="s2">"Glomerulus"</span><span class="p">,</span> <span class="s2">"Artery"</span><span class="p">])</span>
+<span class="go">Glomerulus    126</span>
+<span class="go">Artery          0</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="qc">QC</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.qc"></a>
+    <div class="doc doc-contents first">
+
+        <p>Per-cell QC of a SpatialData table.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.qc.compute_sbr" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">compute_sbr</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">bandwidth</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">weight_cutoff</span><span class="o">=</span><span class="mf">0.08</span><span class="p">,</span> <span class="n">bg_quantile</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">sbr_min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">sbr_max</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">''</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Regional signal-to-background ratio (SBR) of each cell.</p>
+<p>Mean gene counts over mean negative-probe counts, each smoothed over the cell's neighbours with Gaussian weights.
+Same algorithm and defaults as <code>computeSBR()</code> in Barisano's CosMx QC (R).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A SpatialData object whose table has <code>CenterX/Y_global_px</code> and probes named <code>Negative*</code> (negative
+probes) and <code>SystemControl*</code> (excluded).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bandwidth</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Gaussian bandwidth, mm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.01</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>weight_cutoff</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Neighbours with a smaller weight are ignored (sets the search radius).</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.08</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>bg_quantile</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The smoothed background is floored at this quantile of its positive values: a near-zero background
+otherwise gives ratios of ~1e9.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.01</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>sbr_min</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bounds on log2(SBR) for <code>flag_sbr</code>; None disables a bound.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>sbr_max</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bounds on log2(SBR) for <code>flag_sbr</code>; None disables a bound.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>table</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Table element name.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;table&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>label</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Prefix of the printed summary (e.g. the slide name).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SBR per cell. <code>obs</code> gets <code>SBR</code>, <code>log2SBR</code> and <code>flag_sbr</code> in place.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="plots">Plots</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.pl"></a>
+    <div class="doc doc-contents first">
+
+        <p>Static plots of single slides with spatialdata-plot, y up as in the AtoMx slide view.</p>
+<p>Each function returns the matplotlib axes without showing them: call <code>plt.show()</code> or <code>ax.figure.savefig(...)</code>.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.pl.plot_slide_overview" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">plot_slide_overview</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>All cells of a single slide coloured by an obs column, each group labelled at its median position.</p>
+<p>Cells are rasterised by datashader at <code>figsize × dpi</code> pixels: at ~1000 px across a slide one pixel is about
+one cell, so raise <code>dpi</code> for sharper cores.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>color</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>obs column, e.g. <code>"core_str"</code> or <code>"fov"</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>title</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Plot title (default: <code>color</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>figsize</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Figure size (inches) and resolution.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(12, 20)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dpi</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Figure size (inches) and resolution.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(12, 20)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fontsize</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the group labels.</p>
+              </div>
+            </td>
+            <td>
+                  <code>8</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.pl.plot_core" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">plot_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">core</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">core_key</span><span class="o">=</span><span class="s1">'core_str'</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>One core of a single slide: its composite image, cell outlines and selected transcripts.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>core</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Core name (<code>obs[core_key]</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>genes</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{gene: colour}</code> of transcripts to draw.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>color</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>obs column to fill the cells by (e.g. <code>"manual_annotation"</code>); without it, cells are outlined in yellow.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>palette</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{value: colour}</code> for <code>color</code>; cells with other values or NA are left unfilled.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>title</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Plot title (default: <code>core</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">plot_core</span><span class="p">(</span><span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">],</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="p">{</span><span class="s2">"NPHS2"</span><span class="p">:</span> <span class="s2">"magenta"</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plot_core</span><span class="p">(</span><span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">],</span> <span class="s2">"C4R7"</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"manual_annotation"</span><span class="p">,</span>
+<span class="gp">... </span>          <span class="n">palette</span><span class="o">=</span><span class="n">annotation_palette</span><span class="p">(</span><span class="n">classes</span><span class="p">))</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.pl.annotation_palette" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">annotation_palette</span><span class="p">(</span><span class="n">classes</span><span class="p">,</span> <span class="n">used</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>{class: colour}</code> in the colours of :func:<code>frzspatial.viewer.annotate_core</code>'s layers (scanpy's default_20).</p>
+<p>used: an obs column; only the classes that occur in it are returned (for :func:<code>plot_core</code>'s <code>palette</code>).</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="napari">napari</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.viewer"></a>
+    <div class="doc doc-contents first">
+
+        <p>napari windows: view a SpatialData object, and draw annotations on a core or slide.</p>
+<p>Importing this module loads Qt, so import it only where a window is opened.</p>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>When Python runs inside another program (R through reticulate, Jupyter), the napari window belongs to that
+program: close it with the window's own close button. Quitting with Cmd-Q quits the host application's Qt loop and
+can hang it, and force-quitting the window kills the host (e.g. the R session). Annotations are saved after every
+change, so a hang loses nothing.</p>
+</details>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.viewer.patch_anndata" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">patch_anndata</span><span class="p">()</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Restore <code>AnnData._get_X</code>, removed in anndata 0.13 but still called by napari-spatialdata 0.7 (colour by
+gene). Called by :func:<code>open_napari</code> and :func:<code>annotate_core</code>; call it yourself before opening napari-spatialdata
+another way.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.viewer.open_napari" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">open_napari</span><span class="p">(</span><span class="n">sdata</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Show <code>sdata</code> in a napari-spatialdata window; returns when the window is closed.</p>
+<p>The window can open behind other windows (look for it with Cmd-Tab / Alt-Tab).</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">open_napari</span><span class="p">(</span><span class="n">build_core</span><span class="p">(</span><span class="n">slides</span><span class="p">[</span><span class="s2">"MN2"</span><span class="p">],</span> <span class="s2">"MN2"</span><span class="p">,</span> <span class="s2">"C4R7"</span><span class="p">))</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.viewer.annotate_core" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">annotate_core</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">slide</span><span class="p">,</span> <span class="n">core</span><span class="p">,</span> <span class="n">classes</span><span class="p">,</span> <span class="n">annot_dir</span><span class="o">=</span><span class="s1">'results/annotations'</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="s1">'manual_annotation'</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">'table'</span><span class="p">,</span> <span class="n">downsample</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Draw regions on a core (or a whole slide) in napari, one layer per class; label the cells on closing.</p>
+<p>The core is stitched by :func:<code>frzspatial.build_core</code> and opened with its composite, cell outlines (not for a
+whole slide: ~70k outlines are slow) and one Shapes layer <code>annot: &lt;class&gt;</code> per class, holding this core's
+saved polygons. Draw polygons (P) or rectangles (R) in the layer of a class; ellipses are ignored. Each change
+is saved to <code>&lt;annot_dir&gt;/&lt;slide&gt;_&lt;core&gt;.geojson</code> (global px). When the window is closed, <code>obs[column]</code> is
+rebuilt from every saved file (:func:<code>frzspatial.annotations_to_obs</code>).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide or a merged object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>slide</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Slide name.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>core</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Core name, or None for the whole slide (downsampled; saved to <code>&lt;slide&gt;_slide.geojson</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>classes</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Class names, in priority order for overlaps; classes found only in the saved file are added.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>annot_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>frzspatial.annotations_to_obs</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;results/annotations&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>column</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>frzspatial.annotations_to_obs</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;results/annotations&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>table</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>frzspatial.annotations_to_obs</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;results/annotations&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>colors</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>frzspatial.build_core</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>downsample</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>As in :func:<code>frzspatial.build_core</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="GeoDataFrame">GeoDataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The core's polygons (<code>class</code>, <code>geometry</code>).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="he-registration">H&amp;E registration</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.he"></a>
+    <div class="doc doc-contents first">
+
+        <p>Register a whole-slide H&amp;E (Aperio SVS) onto the CosMx cells, from tissue shape alone.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.he.register_he" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">register_he</span><span class="p">(</span><span class="n">cells_px</span><span class="p">,</span> <span class="n">he_overview</span><span class="p">,</span> <span class="n">he_um_per_overview_px</span><span class="p">,</span> <span class="n">px_um</span><span class="o">=</span><span class="n">PX_UM</span><span class="p">,</span> <span class="n">grid_um</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">min_blob_mm2</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Fit the CosMx → H&amp;E transform from tissue shape alone.</p>
+<ol>
+<li>Tissue masks on a <code>grid_um</code> grid: the H&amp;E by Otsu threshold, the cells by occupancy.</li>
+<li>Rigid search: the 8 right-angle rotations and flips, then a ±4° sweep, each with its best translation by FFT
+   cross-correlation (pixel sizes are known, so the scale is fixed).</li>
+<li>Landmarks: each tissue blob (e.g. a TMA core) fully covered by cells is paired with its H&amp;E blob; with at
+   least 3 pairs, outliers are dropped and the affine is refitted on their centroids.</li>
+</ol>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>cells_px</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(n, 2) cell centroids in global px.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>he_overview</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A coarse H&amp;E level, (y, x, 3).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>he_um_per_overview_px</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>µm per pixel of <code>he_overview</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>px_um</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>µm per CosMx global px.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="frzspatial._utils.PX_UM">PX_UM</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>grid_um</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask grid, µm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>50</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_blob_mm2</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Smallest blob used as a landmark, mm².</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.05</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>affine</code></td>            <td>
+                  <code><span title="spatialdata.transformations.Affine">Affine</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>H&amp;E µm → global px.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>pairs</code></td>            <td>
+                  <code><span title="DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Landmark pairs (<code>x_px</code>, <code>y_px</code>, <code>he_x_um</code>, <code>he_y_um</code>, <code>resid_um</code>).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>score</code></td>            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Fraction of the cells' tissue on H&amp;E tissue.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.he.add_he_image" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">add_he_image</span><span class="p">(</span><span class="n">sdata</span><span class="p">,</span> <span class="n">svs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'he'</span><span class="p">,</span> <span class="n">px_um</span><span class="o">=</span><span class="n">PX_UM</span><span class="p">,</span> <span class="n">grid_um</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Add a whole-slide H&amp;E (Aperio SVS) as a lazy multiscale image, registered onto the cells.</p>
+<p>The SVS's own pyramid levels become the scales, so nothing is read until plotted or written, except the
+coarsest level, used by :func:<code>register_he</code>. The pixel size comes from the SVS header (MPP). Landmark pairs are
+kept as shapes <code>&lt;name&gt;_landmarks</code> (H&amp;E) and <code>cell_landmarks</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sdata</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A single slide, e.g. from :func:<code>frzspatial.build_sdata</code>. Modified in place and returned.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>svs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path of the SVS file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>name</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Image element name.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;he&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="export">Export</h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="frzspatial.export"></a>
+    <div class="doc doc-contents first">
+
+        <p>Export for R/Seurat without conversion packages.</p>
+<p>:func:<code>write_seurat_inputs</code> writes plain files that R reads directly. A matching R reader::</p>
+<div class="highlight"><pre><span></span><code>read_csc = function(dir, assay, genes, cells) {
+  i = readBin(file.path(dir, paste0(assay, "_i.bin")), "integer", n = 2^31 - 1)
+  p = readBin(file.path(dir, paste0(assay, "_p.bin")), "integer", n = length(cells) + 1)
+  x = readBin(file.path(dir, paste0(assay, "_x.bin")), "double", n = length(i))
+  Matrix::sparseMatrix(i = i, p = p, x = x, index1 = FALSE, dims = c(length(genes), length(cells)),
+                       dimnames = list(genes, cells))
+}
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="frzspatial.export.write_seurat_inputs" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_seurat_inputs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">genes</span><span class="p">,</span> <span class="n">cells</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">xy_px</span><span class="p">,</span> <span class="n">umap</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Write the inputs of a Seurat object as plain files.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>out_dir</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output folder (created).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>counts</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>{assay: cells × genes sparse matrix}</code>; the first is the object's main assay.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>genes</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Gene and cell names.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cells</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Gene and cell names.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>obs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cell metadata, cells as rows; categoricals are written as text (NA as "").</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>xy_px</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(cells, 2) positions, e.g. AtoMx global px.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>umap</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>(cells, 2) embedding, or None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>out_dir</code>, holding <code>&lt;assay&gt;_i.bin</code>, <code>&lt;assay&gt;_p.bin</code>, <code>&lt;assay&gt;_x.bin</code> (the genes × cells matrix as CSC
+components: int32, int32, float64), <code>assays.txt</code>, <code>genes.txt</code>, <code>cells.txt</code>, <code>metadata.csv</code>,
+<code>xy_px.csv</code> and <code>umap.csv</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a matrix has more non-zeros than an R dgCMatrix holds (2^31 - 1).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
