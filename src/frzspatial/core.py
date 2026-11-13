@@ -25,25 +25,29 @@ def coordinate_system(sdata, slide):
     return (f"-{slide}", f"global-{slide}") if merged else ("", "global")
 
 
-def core_box(sdata, core, core_key="core_str", table="table"):
-    """Bounding-box query arguments for one core of a single slide: the rectangle around its cells.
+def core_box(sdata, core, core_key="core_str", table="table", slide=None, slide_key="slide"):
+    """Bounding-box query arguments for one core: the rectangle around its cells.
 
-    Use as ``sdata.query.bounding_box(**core_box(sdata, "C4R7"))``.
+    Use as ``sdata.query.bounding_box(**core_box(sdata, "C4R7"))``. For a merged object, give the `slide`: its cells
+    (``obs[slide_key] == slide``) and coordinate system ``global-<slide>`` are used.
 
     Raises
     ------
     ValueError
-        If no cell has ``obs[core_key] == core``.
+        If no cell has ``obs[core_key] == core`` (on that slide).
     """
     obs = sdata.tables[table].obs
-    xy = obs.loc[obs[core_key].astype(str) == core, ["CenterX_global_px", "CenterY_global_px"]]
+    sel = obs[core_key].astype(str) == core
+    if slide is not None and slide_key in obs:
+        sel &= obs[slide_key].astype(str) == slide
+    xy = obs.loc[sel, ["CenterX_global_px", "CenterY_global_px"]]
     if xy.empty:
-        raise ValueError(f"no cells in core {core}")
+        raise ValueError(f"no cells in core {core}" + (f" of slide {slide}" if slide else ""))
     return dict(
         axes=("x", "y"),
         min_coordinate=xy.min().to_numpy(),
         max_coordinate=xy.max().to_numpy(),
-        target_coordinate_system="global")
+        target_coordinate_system=coordinate_system(sdata, slide)[1] if slide else "global")
 
 
 def build_core(sdata, slide, core=None, table="table", colors=None, scale_factors=(2, 2, 2), downsample=None,

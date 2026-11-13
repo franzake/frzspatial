@@ -67,6 +67,7 @@ __all__ = [
     "load_slides",
     "save_table",
     "slide_with_cells",
+    "merge_slides",
     "add_slide_view",
     "read_table",
     "read_polygons",
@@ -488,6 +489,48 @@ def save_table(sdata, table="table"):
     """
     sdata.delete_element_from_disk(table)
     sdata.write_element(table)
+
+
+def merge_slides(slides, drop="flag_overall", table="table"):
+    """Several slides in one object, without their flagged cells.
+
+    Each slide's elements are suffixed ``-<slide>`` and live in their own coordinate system ``global-<slide>``
+    (spatialdata's ``concatenate``), so slides never overlap; images, masks and transcripts are shared, not copied.
+
+    Parameters
+    ----------
+    slides
+        ``{slide: SpatialData}`` (single slides, e.g. from :func:`load_slides`), in the order of the result.
+    drop
+        Boolean obs column of the cells to leave out (None: keep all).
+    table
+        Table element.
+
+    Returns
+    -------
+    SpatialData
+        Its table has the cell names (obs ``cell``) as obs names, and ``slide`` as a categorical in slide order.
+    """
+    import spatialdata as sd
+
+    missing = [s for s, sdata in slides.items() if drop is not None and drop not in sdata.tables[table].obs]
+    if missing:
+        raise KeyError(f"no obs column {drop!r} on {', '.join(missing)}: flag the cells first (qc_flags), or reopen "
+                       f"tables saved after flagging (save_table); drop=None keeps all cells")
+    kept = {}
+    for s, sdata in tqdm(slides.items(), desc="filtering", unit="slide"):
+        f = sdata.subset([name for _, name, _ in sdata.gen_elements()])
+        tb = f.tables[table]
+        if drop is not None:
+            f.tables[table] = tb = tb[~tb.obs[drop].astype(bool).to_numpy()].copy()
+        f.shapes["cell_boundaries"] = f.shapes["cell_boundaries"].loc[tb.obs_names]
+        kept[s] = f
+    merged = sd.concatenate(kept, concatenate_tables=True)
+    tb = merged.tables[table]
+    tb.obs_names = tb.obs["cell"].astype(str).to_numpy()  # concatenate() suffixes them
+    tb.obs["slide"] = pd.Categorical(tb.obs["slide"].astype(str), categories=list(slides))
+    _log(f"merged: {tb.obs['slide'].value_counts(sort=False).to_dict()}")
+    return merged
 
 
 def slide_with_cells(sdata, other, slide, table="table"):

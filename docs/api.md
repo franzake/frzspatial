@@ -4,7 +4,7 @@
 
 ::: frzspatial.io
     options:
-      members: [build_sdata, load_slides, save_table, slide_with_cells, add_slide_view, read_table, read_polygons, transcripts_parquet, read_transcripts, read_images_labels, flat]
+      members: [build_sdata, load_slides, save_table, merge_slides, slide_with_cells, add_slide_view, read_table, read_polygons, transcripts_parquet, read_transcripts, read_images_labels, flat]
 
 ## Cores
 
@@ -21,6 +21,18 @@
 ## QC
 
 ::: frzspatial.qc
+
+## R tools (InSituType, FastReseg)
+
+::: frzspatial.rtools
+
+## DeSpotX
+
+::: frzspatial.despotx
+
+## Niches
+
+::: frzspatial.niches
 
 ## Plots
 

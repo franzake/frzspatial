@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 
 from ._utils import PX_UM
 
-__all__ = ["compute_sbr", "fov_integrity", "panel_barcodes"]
+__all__ = ["compute_sbr", "fov_integrity", "panel_barcodes", "qc_flags", "plot_qc", "plot_qc_flags"]
 
 PX_MM = PX_UM / 1000  # mm per AtoMx global px
 
@@ -262,3 +262,212 @@ def fov_integrity(sdata, panel="Hs_6k", max_prop_loss=0.6, max_totalcounts_loss=
     return {"flagged": flagged, "flagged_totalcounts": flagged_tc, "flagged_bias": flagged_bias,
             "totalcounts_resid": pd.Series(tc_resid, index=[f"{f}_{i}" for i, f in enumerate(square_fov)]),
             "bias": pd.DataFrame(bias, index=fovs, columns=bits), "p": pd.DataFrame(p, index=fovs, columns=bits)}
+
+
+_QC_FILTERS = {  # flag column: (name in the summary, rule)
+    "flag_nCount": ("RNA counts", "nCount_RNA"),
+    "flag_nFeature": ("Detected genes", "nFeature_RNA"),
+    "flag_area": ("Cell area", "Area"),
+    "flag_fov_integrity": ("FOV integrity", "signal loss"),
+    "flag_boundary": ("FOV boundary", "log2 split ratio"),
+    "flag_sbr": ("Regional SBR", "log2 SBR"),
+}
+
+
+def _outside(v, lo, hi):
+    """v < lo or v > hi (None: no bound); NaN is never flagged."""
+    v = np.asarray(v, float)
+    with np.errstate(invalid="ignore"):
+        flag = np.zeros(len(v), bool)
+        if lo is not None:
+            flag |= v < lo
+        if hi is not None:
+            flag |= v > hi
+    return flag & ~np.isnan(v)
+
+
+def _rule(lo, hi):
+    parts = ([f"< {lo:.4g}"] if lo is not None else []) + ([f"> {hi:.4g}"] if hi is not None else [])
+    return " or ".join(parts) or "-"
+
+
+def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=None, area_min=None, area_max=80e3,
+             split_ratio_min=np.log2(0.5), split_ratio_max=np.log2(4), sbr_min=0, sbr_max=None, table="table",
+             label=""):
+    """Flag cells failing the QC thresholds, as ``QCfiltering()`` of Barisano's CosMx QC (R), without removing them.
+
+    Each bound is optional (None: none). The FOV-integrity flag comes from :func:`fov_integrity`; the boundary flag
+    applies to FOV-border cells only (``SplitRatioToLocal`` > 0: area over the FOV's mean area, from AtoMx), on the
+    log2 scale; the SBR flag uses ``log2SBR`` (:func:`compute_sbr`).
+
+    Parameters
+    ----------
+    sdata
+        A single slide, after :func:`fov_integrity` and :func:`compute_sbr`.
+    count_min, count_max, feature_min, feature_max, area_min, area_max
+        Bounds on ``nCount_RNA``, ``nFeature_RNA`` and ``Area`` (px).
+    split_ratio_min, split_ratio_max, sbr_min, sbr_max
+        Bounds on log2(``SplitRatioToLocal``) of border cells and on ``log2SBR``.
+    table
+        Table element.
+    label
+        Prefix of the printed summary (e.g. the slide name).
+
+    Returns
+    -------
+    DataFrame
+        Cells flagged per filter and overall. Sets obs ``flag_nCount``, ``flag_nFeature``, ``flag_area``,
+        ``flag_boundary``, ``flag_sbr`` (and ``flag_density``, ``flag_extranuclear``: False, as in R) and
+        ``flag_overall`` in place.
+    """
+    obs = sdata.tables[table].obs
+    sr = obs["SplitRatioToLocal"].to_numpy(float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        log2_sr = np.where(sr > 0, np.log2(sr), np.nan)
+    obs["flag_nCount"] = _outside(obs["nCount_RNA"], count_min, count_max)
+    obs["flag_nFeature"] = _outside(obs["nFeature_RNA"], feature_min, feature_max)
+    obs["flag_area"] = _outside(obs["Area"], area_min, area_max)
+    obs["flag_boundary"] = _outside(log2_sr, split_ratio_min, split_ratio_max)
+    obs["flag_sbr"] = _outside(obs["log2SBR"], sbr_min, sbr_max)
+    obs["flag_fov_integrity"] = obs["flag_fov_integrity"].astype(bool)
+    obs["flag_density"] = obs["flag_extranuclear"] = False
+    obs["flag_overall"] = obs[list(_QC_FILTERS)].any(axis=1)
+
+    rules = [_rule(count_min, count_max), _rule(feature_min, feature_max), _rule(area_min, area_max),
+             "flagged FOV", _rule(split_ratio_min, split_ratio_max), _rule(sbr_min, sbr_max)]
+    summary = pd.DataFrame({
+        "filter": [n for n, _ in _QC_FILTERS.values()] + ["Overall"],
+        "rule": [f"{v} {r}" for (_, v), r in zip(_QC_FILTERS.values(), rules)] + ["any filter"],
+        "flagged": [int(obs[c].sum()) for c in _QC_FILTERS] + [int(obs["flag_overall"].sum())]})
+    summary["pct"] = (100 * summary["flagged"] / len(obs)).round(2)
+    prefix = f"{label}: " if label else ""
+    tqdm.write(f"{prefix}{int(obs['flag_overall'].sum())} / {len(obs)} cells flagged")
+    return summary
+
+
+def plot_qc(sdata, count_min=None, count_max=None, feature_min=None, feature_max=None, area_min=None, area_max=None,
+            sbr_min=None, sbr_max=None, split_ratio_min=None, split_ratio_max=None, title="", bins=40, color="0.4",
+            table="table"):
+    """The QC panels of ``QCoverview()``: counts, genes, area, log2 SBR and log2 split ratio (border cells), with
+    red lines at the thresholds.
+
+    Returns
+    -------
+    Figure
+        4 x 2 panels; call ``plt.show()``.
+    """
+    import matplotlib.pyplot as plt
+
+    obs = sdata.tables[table].obs
+    d = pd.DataFrame({"nCounts": obs["nCount_RNA"].to_numpy(float), "nGenes": obs["nFeature_RNA"].to_numpy(float),
+                      "area": obs["Area"].to_numpy(float), "log2SBR": obs["log2SBR"].to_numpy(float),
+                      "split": obs["SplitRatioToLocal"].to_numpy(float)})
+    border = d[d["split"] > 0].assign(log2split=lambda b: np.log2(b["split"]))
+    fig, axes = plt.subplots(4, 2, figsize=(8, 10))
+
+    def lines(ax, xs=(), ys=()):
+        for v in xs:
+            if v is not None:
+                ax.axvline(v, c="red", lw=0.8)
+        for v in ys:
+            if v is not None:
+                ax.axhline(v, c="red", lw=0.8)
+
+    def hist(ax, v, t, xs):
+        ax.hist(v[np.isfinite(v)], bins=bins, color=color)
+        ax.set(title=t, ylabel="nCells")
+        lines(ax, xs)
+
+    def scatter(ax, x, y, t, xs, ys):
+        ax.scatter(x, y, s=0.4, c=color, lw=0, rasterized=True)
+        ax.set(title=t)
+        lines(ax, xs, ys)
+
+    c, f, a, s, r = (count_min, count_max), (feature_min, feature_max), (area_min, area_max), (sbr_min, sbr_max), \
+        (split_ratio_min, split_ratio_max)
+    hist(axes[0, 0], d["nCounts"], "nCounts x nCells", c)
+    scatter(axes[0, 1], d["nCounts"], d["nGenes"], "nCount_RNA x nFeature_RNA", c, f)
+    hist(axes[1, 0], d["area"], "cellArea x nCells", a)
+    scatter(axes[1, 1], d["area"], d["nCounts"], "cellArea x nCounts", a, c)
+    hist(axes[2, 0], d["log2SBR"], "log2SBR x nCells", s)
+    scatter(axes[2, 1], d["log2SBR"], d["nCounts"], "log2SBR x nCounts", s, c)
+    hist(axes[3, 0], border["log2split"], "log2(SplitRatio) x nCells (border cells)", r)
+    scatter(axes[3, 1], border["log2split"], border["nCounts"], "log2(SplitRatio) x nCounts (border cells)", r, c)
+    for ax in axes.flat:
+        ax.title.set_fontsize(9)
+        ax.tick_params(labelsize=7)
+        for sp_ in ("top", "right"):
+            ax.spines[sp_].set_visible(False)
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig
+
+
+def plot_qc_flags(sdata, title="", n_intersections=20, table="table"):
+    """Cells flagged by each QC filter and by each combination of filters (UpSet plot), with the kept / flagged
+    share, as ``QCfiltering()``'s plot. Needs :func:`qc_flags`.
+
+    Returns
+    -------
+    Figure
+    """
+    import matplotlib.pyplot as plt
+
+    obs = sdata.tables[table].obs
+    cols = [c for c in _QC_FILTERS if obs[c].any()]
+    names = [_QC_FILTERS[c][0] for c in cols]
+    flags = obs.loc[obs["flag_overall"].astype(bool), cols].astype(bool)
+    combos = flags.value_counts().head(n_intersections)
+    n, k = len(combos), len(cols)
+    x = np.arange(n)
+
+    # 0. Layout: pie | intersection sizes (top); set sizes | dots with the filter names on their left (bottom)
+    fig = plt.figure(figsize=(12, 6))
+    gs = fig.add_gridspec(2, 2, height_ratios=[0.62, 0.38], width_ratios=[0.22, 0.78], hspace=0.04, wspace=0.28)
+    pie, bars, sizes, dots = (fig.add_subplot(gs[i, j]) for i, j in [(0, 0), (0, 1), (1, 0), (1, 1)])
+
+    # 1. Intersection sizes
+    bars.bar(x, combos.to_numpy(), color="0.25", width=0.6)
+    for i, v in enumerate(combos.to_numpy()):
+        bars.text(i, v, f"{v:,}", ha="center", va="bottom", fontsize=7)
+    bars.set(xticks=[], xlim=(-0.6, n - 0.4), ylabel="Cells")
+    bars.set_title("Flagged cells per combination of filters", fontsize=10, loc="left")
+
+    # 2. Dot matrix, one shaded band per filter
+    for j in range(k):
+        if j % 2 == 0:
+            dots.axhspan(j - 0.5, j + 0.5, color="0.95", zorder=0)
+        dots.scatter(x, [j] * n, c="0.85", s=36, zorder=1)
+    for i, combo in enumerate(combos.index):
+        on = [j for j, v in enumerate(combo) if v]
+        if len(on) > 1:
+            dots.plot([i, i], [min(on), max(on)], c="0.15", lw=1.5, zorder=2)
+        dots.scatter([i] * len(on), on, c="0.15", s=36, zorder=3)
+    dots.set(xticks=[], xlim=bars.get_xlim(), ylim=(-0.5, k - 0.5))
+    dots.set_yticks(range(k), names, fontsize=9)
+    dots.tick_params(axis="y", length=0, pad=6)
+
+    # 3. Cells per filter (any combination), growing to the left
+    totals = [int(obs[c].sum()) for c in cols]
+    sizes.barh(range(k), totals, color="0.25", height=0.6)
+    for j, v in enumerate(totals):
+        sizes.text(v, j, f"{v:,} ", ha="right", va="center", fontsize=7, color="0.2")
+    sizes.set(yticks=[], ylim=dots.get_ylim(), xlim=(0, max(totals) * 1.3), xlabel="Cells per filter")
+    sizes.invert_xaxis()
+
+    # 4. Kept / flagged share, counts in the legend
+    n_flag = int(obs["flag_overall"].sum())
+    wedges, _ = pie.pie([n_flag, len(obs) - n_flag], colors=["#D73027", "0.88"], startangle=90, counterclock=False,
+                        wedgeprops={"linewidth": 1, "edgecolor": "white"})
+    pie.legend(wedges, [f"Flagged {n_flag:,} ({100 * n_flag / len(obs):.1f}%)",
+                        f"Kept {len(obs) - n_flag:,} ({100 * (1 - n_flag / len(obs)):.1f}%)"],
+               loc="upper center", bbox_to_anchor=(0.5, 0.02), frameon=False, fontsize=8)
+    pie.set_aspect("equal")
+
+    for ax in (bars, dots, sizes):
+        for side in ("top", "right", "left", "bottom"):
+            ax.spines[side].set_visible((ax is bars and side == "left") or (ax is sizes and side == "bottom"))
+    bars.tick_params(labelsize=8)
+    sizes.tick_params(labelsize=8)
+    fig.suptitle(title, fontsize=12, fontweight="bold", x=0.02, ha="left")
+    return fig

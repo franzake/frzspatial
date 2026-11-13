@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- `frzspatial.rtools.structure_zones`: multicellular structures (e.g. glomeruli from their tuft cells) and the
+  cells inside and in two rings around them (R package SpNeigh, convex outlines).
+- `frzspatial.rtools.decontx`: ambient RNA removal by decontX (R package celda) with given clusters, per batch;
+  returns the decontaminated counts and each cell's contaminated fraction.
+
+## 0.3.0 (2026-11-03)
+
+- QC: `qc_flags` (Barisano's `QCfiltering()` flags and summary), `plot_qc` (`QCoverview()` panels) and
+  `plot_qc_flags` (UpSet plot of the flags).
+- `merge_slides`: the slides without their flagged cells, one coordinate system per slide.
+- `frzspatial.rtools`: R tools run from Python through files and `Rscript` (works from Jupyter, Quarto and
+  reticulate): `insitutype` (supervised InSituType), `fastreseg_inputs` / `load_fastreseg` (FastReseg's cluster
+  inputs and results), `apply_reseg` (the resegmented object), `pearson_pca` (scPearsonPCA batch-corrected PCA),
+  `cluster_markers` and `marker_heatmap` (HieraType).
+- `frzspatial.despotx`: `despotx_input` and `apply_despotx` (DeSpotX decontamination).
+- Plots: `plot_umap`, `plot_composition`; `plot_core` and `plot_slide_overview` take a merged object's `slide`;
+  overviews with more than 102 categories get distinct colours (spatialdata-plot drew them grey).
+- `load_fastreseg` caches the merged results (Parquet + npz). Dependencies: igraph (Leiden), adjustText.
+
 ## 0.2.0 (2026-11-03)
 
 - `frzspatial.tma`: `key_matrix`, `assign_cores` (gbspatial's `assign_fovs_to_cores()`, with manual FOV fixes),

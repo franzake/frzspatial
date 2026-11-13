@@ -228,3 +228,77 @@ def test_slide_with_cells_and_plot_annotations(sdata, tmp_path):
                       tmp_path / "S1_C1R1.geojson")
     annotations_to_obs(s, ["Glomerulus"], tmp_path)
     plot_annotations(s, ["Glomerulus"], title="S1")
+
+
+def test_qc_flags_and_merge(sdata):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from frzspatial import merge_slides, plot_qc, plot_qc_flags, qc_flags
+
+    obs = sdata.tables["table"].obs
+    obs["log2SBR"] = np.where(obs["fov"] == 1, 1.0, -1.0)
+    obs["flag_fov_integrity"] = False
+    obs["SplitRatioToLocal"] = 0.0
+    obs["nCount_RNA"], obs["nFeature_RNA"], obs["Area"] = 100.0, 5.0, 400.0
+    summary = qc_flags(sdata, count_min=None, area_max=None, sbr_min=0)
+    assert obs["flag_overall"].tolist() == (obs["fov"] == 2).tolist()
+    assert summary.set_index("filter").loc["Overall", "flagged"] == 4
+    plot_qc(sdata, sbr_min=0)
+    plot_qc_flags(sdata, title="S1")
+    merged = merge_slides({"S1": sdata})
+    t = merged.tables["table"]
+    assert t.n_obs == 4 and "cell_boundaries-S1" in merged.shapes and list(t.obs["slide"].cat.categories) == ["S1"]
+    assert list(t.obs_names) == t.obs["cell"].astype(str).tolist()
+
+
+def test_rtools_roundtrip(tmp_path):
+    import shutil
+    import subprocess
+
+    import pytest
+    import scipy.sparse as sp
+    from frzspatial import rtools
+
+    if shutil.which("Rscript") is None:
+        pytest.skip("R not installed")
+    X = sp.random(30, 7, density=0.3, format="csr", random_state=0) * 10
+    rtools.write_counts(tmp_path, "m", X, [f"c{i}" for i in range(30)], [f"g{j}" for j in range(7)])
+    code = (f'source("{rtools.R_DIR.joinpath("io.R")}"); m = read_counts("{tmp_path}", "m"); '
+            f'stopifnot(dim(m) == c(30, 7), rownames(m)[3] == "c2"); write_counts(m * 2, "{tmp_path}", "m2")')
+    subprocess.run(["Rscript", "-e", code], check=True)
+    Y, rows, cols = rtools.read_counts(tmp_path, "m2")
+    assert rows[3] == "c3" and cols == [f"g{j}" for j in range(7)] and abs(Y - 2 * X).max() < 1e-12
+
+
+def test_umap_composition_despotx(sdata, tmp_path):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import scipy.io
+    import scipy.sparse as sp
+    from frzspatial import apply_despotx, despotx_input, merge_slides
+    from frzspatial.pl import plot_composition, plot_umap
+
+    obs = sdata.tables["table"].obs
+    obs["ist_lineage"] = pd.Categorical(np.where(obs["fov"] == 1, "A", "B"))
+    obs["sample_id"], obs["group_mn"] = np.where(obs["fov"] == 1, "s1", "s2"), "MN"
+    merged = merge_slides({"S1": sdata}, drop=None)
+    t = merged.tables["table"]
+    t.obsm["X_umap"] = np.random.default_rng(0).normal(size=(t.n_obs, 2))
+    plot_umap(t, "ist_lineage", palette={"A": "#ff0000", "B": "#0000ff"}, legend=True)
+    plot_composition(t.obs, "ist_lineage")
+
+    # DeSpotX: input written, then an "output" of halved counts read back
+    counts = despotx_input(merged, tmp_path, min_cells=1)
+    assert counts.to_dict() == {"A": 4, "B": 4} and (tmp_path / "despotx_in.h5ad").exists()
+    out = tmp_path / "despotx_out"
+    out.mkdir()
+    X = sp.csr_matrix(t.X)
+    scipy.io.mmwrite(out / "adjusted.mtx", (X / 2).T)
+    pd.Series(t.obs_names).to_csv(out / "cells.tsv", header=False, index=False)
+    pd.Series(t.var_names).to_csv(out / "genes.tsv", header=False, index=False)
+    pd.DataFrame({"cell_id": t.obs_names, "contamination": 0.1}).to_csv(out / "contamination.tsv", sep="\t", index=False)
+    t3 = apply_despotx(merged, tmp_path).tables["table"]
+    assert abs(sp.csr_matrix(t3.X) - X / 2).max() < 1e-9 and (t3.layers["counts"] != X).nnz == 0
+    assert np.allclose(t3.obs["despotx_eps"], 0.1)

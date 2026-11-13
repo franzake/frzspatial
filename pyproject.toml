@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "frzspatial"
-version = "0.2.0"
+version = "0.3.0"
 description = "CosMx (AtoMx) exports to SpatialData: fast loading, stitched cores, plots and napari annotation"
 readme = "README.md"
 license = "MIT"
@@ -38,6 +38,9 @@ dependencies = [
     "napari[pyqt5]>=0.6,<0.10; sys_platform != 'linux' or platform_machine != 'aarch64'",
     "napari>=0.6,<0.10; sys_platform == 'linux' and platform_machine == 'aarch64'",  # PyQt5 has no ARM Linux wheels
     "scanpy",
+    "igraph",  # scanpy's Leiden clustering (flavor="igraph")
+    "adjustText",  # labels on UMAPs
+    "squidpy>=1.8",  # spatial graph, neighbourhood enrichment (spatial_neighbors_radius)
     "scikit-image",
     # Intel Macs: numba 0.62 / llvmlite 0.45 are the last with x86_64 macOS wheels (Python <= 3.13); newer ones fail
     # to build
