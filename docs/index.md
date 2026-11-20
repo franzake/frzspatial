@@ -14,6 +14,8 @@ several slides merged into one object (with `slide=`), and change it in place.
 - **R tools** (`frzspatial.rtools`): InSituType, FastReseg inputs and results, scPearsonPCA, HieraType markers and
   heatmap, SpNeigh structures. Reference profiles from an atlas (`frzspatial.reference`).
 - **DeSpotX** decontamination input and result (`despotx_input`, `apply_despotx`).
+- **H&E**: the post-CosMx H&E added as one image per TMA core, aligned to that core's cells from tissue shape and
+  stored as a spatialdata transformation (`frzspatial.he.align_he_cores`); `plot_core(..., image="he_")` shows it.
 - **Plots** (`frzspatial.pl`): one core with its outlines, transcripts or any obs column (`plot_core`), UMAPs
   (`plot_umap`), cell-type composition (`plot_composition`).
 

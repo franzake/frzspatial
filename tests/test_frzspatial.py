@@ -295,3 +295,47 @@ def test_umap_composition_despotx(sdata, tmp_path):
     t3 = apply_despotx(merged, tmp_path).tables["table"]
     assert abs(sp.csr_matrix(t3.X) - X / 2).max() < 1e-9 and (t3.layers["counts"] != X).nnz == 0
     assert np.allclose(t3.obs["despotx_eps"], 0.1)
+
+
+def test_align_he_cores(tmp_path):
+    """Four square cores and an H&E with their tissue 200 µm right and 300 µm down: the crops land on the cells."""
+    import anndata as ad
+    import geopandas as gpd
+    import tifffile
+    from spatialdata import SpatialData
+    from spatialdata.models import ShapesModel, TableModel
+    from spatialdata.transformations import Identity
+    from frzspatial import PX_UM
+    from frzspatial.he import align_he_cores
+
+    rng = np.random.default_rng(0)
+    corners = [(500, 500), (1700, 500), (500, 1700), (1700, 1900)]   # µm; 400 µm squares, not a symmetric grid
+    xy_um = np.vstack([np.c_[x + rng.uniform(0, 400, 400), y + rng.uniform(0, 400, 400)] for x, y in corners])
+    core = np.repeat([f"S1_C{i}R1" for i in range(1, 5)], 400)
+    # H&E: 2 µm/px, white with pink squares where the tissue is (offset 200, 300 µm), and two smaller levels
+    he = np.full((1600, 1600, 3), 250, np.uint8)
+    for x, y in corners:
+        he[(y + 300) // 2:(y + 700) // 2, (x + 200) // 2:(x + 600) // 2] = (200, 120, 190)
+    svs = tmp_path / "he.tif"
+    with tifffile.TiffWriter(svs) as w:
+        w.write(he, subifds=2, description="test | MPP = 2.0", photometric="rgb")
+        for f in (2, 4):
+            w.write(he[::f, ::f], subfiletype=1, photometric="rgb")
+    px = xy_um / PX_UM
+    names = [f"c{i}" for i in range(len(px))]
+    table = TableModel.parse(ad.AnnData(np.zeros((len(px), 1)), obs=pd.DataFrame(
+        {"slide": "S1", "core_id": core, "region": "cell_boundaries", "cell": names}, index=names),
+        obsm={"spatial": px}), region="cell_boundaries", region_key="region", instance_key="cell")
+    shapes = ShapesModel.parse(gpd.GeoDataFrame({"radius": 20.0}, geometry=gpd.points_from_xy(*px.T), index=names),
+                               transformations={"global": Identity()})
+    sdata = SpatialData(shapes={"cell_boundaries": shapes}, tables={"table": table})
+
+    res = align_he_cores(sdata, svs, "S1", level=1, half_um=500, min_cells=10)
+    assert res["aligned"].all() and (res["on_tissue_core_fit"] > 0.9).all()
+    from spatialdata.transformations import get_transformation
+    for c, (x, y) in zip(res.index, corners):
+        im = sdata.images[f"he_{c}"]
+        m = get_transformation(im, "global").to_affine_matrix(("x", "y"), ("x", "y"))
+        h, w = im.shape[1:]
+        centre_um = (m @ [w / 2, h / 2, 1])[:2] * PX_UM    # the crop's centre on the cells, µm
+        assert np.hypot(*(centre_um - (x + 200, y + 200))) < 15, (c, centre_um)

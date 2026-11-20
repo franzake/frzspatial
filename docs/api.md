@@ -30,6 +30,10 @@
 
 ::: frzspatial.despotx
 
+## H&E
+
+::: frzspatial.he
+
 ## Plots
 
 ::: frzspatial.pl

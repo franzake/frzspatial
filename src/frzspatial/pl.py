@@ -42,7 +42,8 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
     fill_alpha, outline_alpha
         Opacity of the cells' fill (with `color`) and outlines.
     image
-        Draw the composite image under the cells.
+        Draw the composite image under the cells; or a prefix of a per-core image to draw instead, e.g. ``"he_"``
+        for ``he_<slide>_<core>`` (the aligned H&E of :func:`frzspatial.he.align_he_cores`).
     ax
         Matplotlib axes to draw into (default: a new figure).
     cmap, layer
@@ -80,7 +81,12 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
         return [plot_core(sdata, core, color=c, ax=a, **kw) for c, a in zip(color, ax)]
     suffix, cs = coordinate_system(sdata, slide) if slide else ("", "global")
     shapes = f"cell_boundaries{suffix}"
-    comps = [name for name in sdata.images if name.endswith(f"_image{suffix}")] if image else []
+    if isinstance(image, str):   # a per-core image, e.g. the aligned H&E
+        comps = [n for n in (f"{image}{slide}_{core}", f"{image}{core}") if n in sdata.images][:1]
+        if not comps:
+            raise KeyError(f"no image {image}{slide + '_' if slide else ''}{core}")
+    else:
+        comps = [name for name in sdata.images if name.endswith(f"_image{suffix}")] if image else []
     elements = comps + [shapes, "table"] + ([f"transcripts{suffix}"] if genes else [])
     with warnings.catch_warnings():  # a merged table also annotates the other slides' polygons, left out here
         warnings.filterwarnings("ignore", message="The table is annotating", category=UserWarning)

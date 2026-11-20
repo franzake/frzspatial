@@ -3,11 +3,13 @@
 ## Unreleased
 
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
-  (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), H&E registration
-  (`frzspatial.he`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
+  (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,
-  `plot_annotations`, `annotation_palette`, `plot_niche_composition`, `plot_share_by_group`. napari and scikit-image are
-  no longer dependencies. They are in 0.1.0 and on the `main-sp` branch's first commit.
+  `plot_annotations`, `annotation_palette`, `plot_niche_composition`, `plot_share_by_group`. napari is no longer a
+  dependency. They are in 0.1.0 and on the `main-sp` branch's first commit.
+- `frzspatial.he.align_he_cores`: the post-CosMx H&E as one aligned image per core (slide affine fitted on core
+  landmarks with spatialdata's `get_transformation_between_landmarks`, then each core's shift by scikit-image's
+  `phase_cross_correlation`); `plot_core` draws it with `image="he_"`. scikit-image is a dependency again.
 - Functions that work per slide take a merged object and `slide=` and change it in place; `assign_cores` stores each
   slide's FOV table in `uns["tma_fovs"]`; `drop_cells`; `plot_core` takes a Series as `color`, `legend_outside`,
   `legend_fontsize`.

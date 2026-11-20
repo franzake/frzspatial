@@ -10,6 +10,7 @@ frzspatial.reference  reference_profiles: InSituType reference profiles from an 
 frzspatial.rtools     insitutype, fastreseg_inputs, load_fastreseg, apply_reseg, pearson_pca, cluster_markers,
                       marker_heatmap, structure_zones: R tools run from Python
 frzspatial.despotx    despotx_input, apply_despotx: DeSpotX decontamination input and result
+frzspatial.he         align_he_cores: post-CosMx H&E, one aligned crop per core
 frzspatial.pl         plot_core, plot_umap, plot_composition
 
 The functions of io, core, qc, tma and despotx are also available at the top level, e.g. ``frzspatial.load_slides``.
@@ -24,7 +25,7 @@ from ._utils import PX_UM
 from .core import coordinate_system, core_box
 from .qc import compute_sbr, fov_integrity, panel_barcodes, plot_qc, plot_qc_flags, qc_flags
 from .tma import add_clinical, assign_cores, cases, key_matrix, plot_core_grid
-from . import reference, rtools
+from . import he, reference, rtools
 from .despotx import apply_despotx, despotx_input
 from .io import add_slide_view, build_sdata, drop_cells, load_slides, merge_slides
 
@@ -52,6 +53,7 @@ __all__ = [
     "load_slides",
     "merge_slides",
     "drop_cells",
+    "he",
     "panel_barcodes",
     "plot_core_grid",
     "plot_qc",

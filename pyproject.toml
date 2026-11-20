@@ -38,6 +38,7 @@ dependencies = [
     "igraph",  # scanpy's Leiden clustering (flavor="igraph")
     "adjustText",  # labels on UMAPs
     "squidpy>=1.8",  # spatial graph, neighbourhood enrichment (spatial_neighbors_radius)
+    "scikit-image",  # H&E tissue masks and registration (frzspatial.he)
     # Intel Macs: numba 0.62 / llvmlite 0.45 are the last with x86_64 macOS wheels (Python <= 3.13); newer ones fail
     # to build
     "numba<0.63; sys_platform == 'darwin' and platform_machine == 'x86_64'",
