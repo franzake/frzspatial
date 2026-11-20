@@ -56,8 +56,8 @@ Cores come from the TMA key (rows and columns oriented like the slide), then QC 
 
 ```python
 key = fs.key_matrix(pd.read_csv("MN2_key.csv", sep=";"))  # key[r - 1, c - 1] = sample of core C<c>R<r>
-fovs = fs.assign_cores(sdata, key, "MN2", fov_overrides={93: "C4R1"})  # obs core_str, sample_id
-fs.plot_core_grid(fovs, "row", sdata=sdata)                # check the orientation
+fs.assign_cores(sdata, key, "MN2", fov_overrides={93: "C4R1"})  # obs core_str, sample_id (in place)
+fs.plot_core_grid(by="core", sdata=sdata, slide="MN2")     # check the assignment (also by="row" / "column")
 fs.fov_integrity(sdata, "Hs_6k", slide="MN2")              # obs flag_fov_integrity, fov_signal_loss
 fs.compute_sbr(sdata)                                      # obs SBR, flag_sbr
 fs.add_clinical(sdata, "MN2", fs.cases("MN2", ["S-1", "S-2"], ["PLA2R", "Normal"]))  # obs slide, group, ...

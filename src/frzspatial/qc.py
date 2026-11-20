@@ -10,7 +10,7 @@ from scipy import stats
 from scipy.spatial import cKDTree
 from tqdm.auto import tqdm
 
-from ._utils import PX_UM
+from ._utils import PX_UM, _set_rows, _slide_rows
 
 __all__ = ["compute_sbr", "fov_integrity", "panel_barcodes", "qc_flags", "plot_qc", "plot_qc_flags"]
 
@@ -18,7 +18,7 @@ PX_MM = PX_UM / 1000  # mm per AtoMx global px
 
 
 def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr_min=0, sbr_max=None, table="table",
-                label=""):
+                label="", slide=None):
     """Regional signal-to-background ratio (SBR) of each cell.
 
     Mean gene counts over mean negative-probe counts, each smoothed over the cell's neighbours with Gaussian weights.
@@ -27,8 +27,9 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
     Parameters
     ----------
     sdata
-        A SpatialData object whose table has ``CenterX/Y_global_px`` and probes named ``Negative*`` (negative
-        probes) and ``SystemControl*`` (excluded).
+        A single slide whose table has ``CenterX/Y_global_px`` and probes named ``Negative*`` (negative probes) and
+        ``SystemControl*`` (excluded), or a merged object (:func:`merge_slides`) with `slide`: neighbours are then
+        taken within that slide only, and the other slides' rows are left as they are.
     bandwidth
         Gaussian bandwidth, mm.
     weight_cutoff
@@ -41,15 +42,19 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
     table
         Table element name.
     label
-        Prefix of the printed summary (e.g. the slide name).
+        Prefix of the printed summary (default: `slide`).
+    slide
+        With a merged object, the slide to score (its obs ``slide``).
 
     Returns
     -------
-    ndarray
-        SBR per cell. ``obs`` gets ``SBR``, ``log2SBR`` and ``flag_sbr`` in place.
+    None
+        Sets obs ``SBR``, ``log2SBR`` and ``flag_sbr`` in place.
     """
     tb = sdata.tables[table]
-    obs = tb.obs
+    rows = _slide_rows(tb.obs, slide)  # None: a single slide
+    obs = tb.obs if rows is None else tb.obs[rows]
+    label = label or slide or ""
     xy = obs[["CenterX_global_px", "CenterY_global_px"]].to_numpy(float) * PX_MM
 
     # 0. Gaussian weights of the neighbours within the cutoff radius (and 1 for the cell itself), rows summing to 1
@@ -65,7 +70,7 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
     probes = tb.var_names.astype(str)
     neg_probe = probes.str.startswith("Negative")
     gene = ~(neg_probe | probes.str.startswith("SystemControl"))
-    X = sp.csr_matrix(tb.X)
+    X = sp.csr_matrix(tb.X if rows is None else tb.X[rows])
     signal = conn @ np.asarray(X[:, gene].mean(axis=1)).ravel()
     neg = conn @ np.asarray(X[:, neg_probe].mean(axis=1)).ravel()
     sbr = signal / np.maximum(neg, np.quantile(neg[neg > 0], bg_quantile))
@@ -77,10 +82,10 @@ def compute_sbr(sdata, bandwidth=0.01, weight_cutoff=0.08, bg_quantile=0.01, sbr
         flag |= log2 < sbr_min
     if sbr_max is not None:
         flag |= log2 > sbr_max
-    obs["SBR"], obs["log2SBR"], obs["flag_sbr"] = sbr, log2, flag
+    for col, values, kind in (("SBR", sbr, "float"), ("log2SBR", log2, "float"), ("flag_sbr", flag, "bool")):
+        _set_rows(tb.obs, col, values, rows, kind)
     prefix = f"{label}: " if label else ""
     tqdm.write(f"{prefix}flag_sbr (log2SBR outside [{sbr_min}, {sbr_max}]): {flag.sum()} / {n} cells")
-    return sbr
 
 
 def panel_barcodes(panel="Hs_6k"):
@@ -123,30 +128,32 @@ def fov_integrity(sdata, panel="Hs_6k", max_prop_loss=0.6, max_totalcounts_loss=
     Parameters
     ----------
     sdata
-        A single slide: probes named ``Negative*`` / ``SystemControl*`` are excluded.
+        A single slide, or a merged object (:func:`merge_slides`) whose obs ``slide`` holds `slide`: then only that
+        slide's FOVs are compared, and the other slides' rows are left as they are. Probes named ``Negative*`` /
+        ``SystemControl*`` are excluded.
     panel
         Panel of the barcodes (:func:`panel_barcodes`).
     max_prop_loss, max_totalcounts_loss
         Signal-loss limits, as fractions (0.6 = 60% lost).
     slide
-        Slide name: FOV ids are ``<slide><fov>``, as in gbspatial.
+        Slide name: FOV ids are ``<slide><fov>``, as in gbspatial; with a merged object, the slide to check.
     table
         Table element.
 
     Returns
     -------
-    dict
-        ``flagged`` (FOV ids), ``flagged_totalcounts``, ``flagged_bias``, ``totalcounts_resid`` (log2 ratio per
-        square) and ``bias`` / ``p`` (FOVs x bits). Sets obs ``flag_fov_integrity``, ``flag_fov_totalcounts``,
-        ``flag_fov_bias``, ``fov_signal_loss`` (log2 ratio of the cell's square) and ``fov_signal_loss_cat`` in place.
+    None
+        Sets obs ``flag_fov_integrity``, ``flag_fov_totalcounts``, ``flag_fov_bias``, ``fov_signal_loss`` (log2
+        ratio of the cell's square) and ``fov_signal_loss_cat`` in place; the flagged FOVs are printed.
     """
     if not 0 <= max_prop_loss <= 1:
         raise ValueError("max_prop_loss must be in [0, 1]")
     tb = sdata.tables[table]
-    obs = tb.obs
+    rows = _slide_rows(tb.obs, slide)  # None: a single slide
+    obs = tb.obs if rows is None else tb.obs[rows]
     probes = tb.var_names.astype(str)
     gene = ~(probes.str.startswith("Negative") | probes.str.startswith("SystemControl"))
-    X = sp.csr_matrix(tb.X)[:, gene].astype(float)
+    X = sp.csr_matrix(tb.X if rows is None else tb.X[rows])[:, gene].astype(float)
     genes = probes[gene]
     xy = obs[["CenterX_global_px", "CenterY_global_px"]].to_numpy(float) * PX_MM
     xy -= xy.min(axis=0)
@@ -249,19 +256,18 @@ def fov_integrity(sdata, panel="Hs_6k", max_prop_loss=0.6, max_totalcounts_loss=
 
     # 5. Per cell
     loss = np.where(in_sq, tc_resid[np.maximum(square, 0)], np.nan)
-    obs["flag_fov_integrity"] = np.isin(fovid, flagged)
-    obs["flag_fov_totalcounts"] = np.isin(fovid, flagged_tc)
-    obs["flag_fov_bias"] = np.isin(fovid, flagged_bias)
-    obs["fov_signal_loss"] = loss
-    obs["fov_signal_loss_cat"] = pd.cut(loss, [-np.inf, -2, -1, 0, 1, 2, np.inf],
-                                        labels=["<-2", "-2:-1", "-1:0", "0:1", "1:2", ">2"])
+    cats = ["<-2", "-2:-1", "-1:0", "0:1", "1:2", ">2"]
+    loss_cat = pd.cut(loss, [-np.inf, -2, -1, 0, 1, 2, np.inf], labels=cats).astype(object)
+    for col, values, kind in (("flag_fov_integrity", np.isin(fovid, flagged), "bool"),
+                              ("flag_fov_totalcounts", np.isin(fovid, flagged_tc), "bool"),
+                              ("flag_fov_bias", np.isin(fovid, flagged_bias), "bool"),
+                              ("fov_signal_loss", loss, "float"),
+                              ("fov_signal_loss_cat", loss_cat, "category")):
+        _set_rows(tb.obs, col, values, rows, kind, categories=cats if kind == "category" else None)
     prefix = f"{slide}: " if slide else ""
     tqdm.write(f"{prefix}FOVs flagged: {len(flagged)} / {len(pd.unique(fovid))}"
                + (f" (total counts: {', '.join(flagged_tc) or '-'}; bias: {', '.join(flagged_bias) or '-'})"
                   if flagged else ""))
-    return {"flagged": flagged, "flagged_totalcounts": flagged_tc, "flagged_bias": flagged_bias,
-            "totalcounts_resid": pd.Series(tc_resid, index=[f"{f}_{i}" for i, f in enumerate(square_fov)]),
-            "bias": pd.DataFrame(bias, index=fovs, columns=bits), "p": pd.DataFrame(p, index=fovs, columns=bits)}
 
 
 _QC_FILTERS = {  # flag column: (name in the summary, rule)
@@ -272,6 +278,12 @@ _QC_FILTERS = {  # flag column: (name in the summary, rule)
     "flag_boundary": ("FOV boundary", "log2 split ratio"),
     "flag_sbr": ("Regional SBR", "log2 SBR"),
 }
+
+
+def _slide_obs(obs, slide):
+    """obs of `slide` in a merged object (all of obs for a single slide)."""
+    rows = _slide_rows(obs, slide)
+    return obs if rows is None else obs[rows]
 
 
 def _outside(v, lo, hi):
@@ -293,7 +305,7 @@ def _rule(lo, hi):
 
 def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=None, area_min=None, area_max=80e3,
              split_ratio_min=np.log2(0.5), split_ratio_max=np.log2(4), sbr_min=0, sbr_max=None, table="table",
-             label=""):
+             label="", slide=None):
     """Flag cells failing the QC thresholds, as ``QCfiltering()`` of Barisano's CosMx QC (R), without removing them.
 
     Each bound is optional (None: none). The FOV-integrity flag comes from :func:`fov_integrity`; the boundary flag
@@ -303,7 +315,8 @@ def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=
     Parameters
     ----------
     sdata
-        A single slide, after :func:`fov_integrity` and :func:`compute_sbr`.
+        A single slide, after :func:`fov_integrity` and :func:`compute_sbr`; or a merged object with `slide`: then
+        only that slide's cells are flagged and counted.
     count_min, count_max, feature_min, feature_max, area_min, area_max
         Bounds on ``nCount_RNA``, ``nFeature_RNA`` and ``Area`` (px).
     split_ratio_min, split_ratio_max, sbr_min, sbr_max
@@ -311,7 +324,9 @@ def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=
     table
         Table element.
     label
-        Prefix of the printed summary (e.g. the slide name).
+        Prefix of the printed summary (default: `slide`).
+    slide
+        With a merged object, the slide to flag (its obs ``slide``).
 
     Returns
     -------
@@ -320,7 +335,11 @@ def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=
         ``flag_boundary``, ``flag_sbr`` (and ``flag_density``, ``flag_extranuclear``: False, as in R) and
         ``flag_overall`` in place.
     """
-    obs = sdata.tables[table].obs
+    full = sdata.tables[table].obs
+    rows = _slide_rows(full, slide)  # None: a single slide
+    need = ["SplitRatioToLocal", "nCount_RNA", "nFeature_RNA", "Area", "log2SBR", "flag_fov_integrity"]
+    obs = (full[need] if rows is None else full.loc[rows, need]).copy()  # the slide's inputs; flags written back
+    label = label or slide or ""
     sr = obs["SplitRatioToLocal"].to_numpy(float)
     with np.errstate(divide="ignore", invalid="ignore"):
         log2_sr = np.where(sr > 0, np.log2(sr), np.nan)
@@ -332,6 +351,8 @@ def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=
     obs["flag_fov_integrity"] = obs["flag_fov_integrity"].astype(bool)
     obs["flag_density"] = obs["flag_extranuclear"] = False
     obs["flag_overall"] = obs[list(_QC_FILTERS)].any(axis=1)
+    for c in list(_QC_FILTERS) + ["flag_density", "flag_extranuclear", "flag_overall"]:
+        _set_rows(full, c, obs[c].to_numpy(bool), rows, "bool")
 
     rules = [_rule(count_min, count_max), _rule(feature_min, feature_max), _rule(area_min, area_max),
              "flagged FOV", _rule(split_ratio_min, split_ratio_max), _rule(sbr_min, sbr_max)]
@@ -347,9 +368,9 @@ def qc_flags(sdata, count_min=30, count_max=None, feature_min=None, feature_max=
 
 def plot_qc(sdata, count_min=None, count_max=None, feature_min=None, feature_max=None, area_min=None, area_max=None,
             sbr_min=None, sbr_max=None, split_ratio_min=None, split_ratio_max=None, title="", bins=40, color="0.4",
-            table="table"):
+            table="table", slide=None):
     """The QC panels of ``QCoverview()``: counts, genes, area, log2 SBR and log2 split ratio (border cells), with
-    red lines at the thresholds.
+    red lines at the thresholds. With a merged object, `slide` draws that slide's cells only.
 
     Returns
     -------
@@ -358,7 +379,7 @@ def plot_qc(sdata, count_min=None, count_max=None, feature_min=None, feature_max
     """
     import matplotlib.pyplot as plt
 
-    obs = sdata.tables[table].obs
+    obs = _slide_obs(sdata.tables[table].obs, slide)
     d = pd.DataFrame({"nCounts": obs["nCount_RNA"].to_numpy(float), "nGenes": obs["nFeature_RNA"].to_numpy(float),
                       "area": obs["Area"].to_numpy(float), "log2SBR": obs["log2SBR"].to_numpy(float),
                       "split": obs["SplitRatioToLocal"].to_numpy(float)})
@@ -403,9 +424,9 @@ def plot_qc(sdata, count_min=None, count_max=None, feature_min=None, feature_max
     return fig
 
 
-def plot_qc_flags(sdata, title="", n_intersections=20, table="table"):
+def plot_qc_flags(sdata, title="", n_intersections=20, table="table", slide=None):
     """Cells flagged by each QC filter and by each combination of filters (UpSet plot), with the kept / flagged
-    share, as ``QCfiltering()``'s plot. Needs :func:`qc_flags`.
+    share, as ``QCfiltering()``'s plot. Needs :func:`qc_flags`. With a merged object, `slide` counts that slide only.
 
     Returns
     -------
@@ -413,7 +434,7 @@ def plot_qc_flags(sdata, title="", n_intersections=20, table="table"):
     """
     import matplotlib.pyplot as plt
 
-    obs = sdata.tables[table].obs
+    obs = _slide_obs(sdata.tables[table].obs, slide)
     cols = [c for c in _QC_FILTERS if obs[c].any()]
     names = [_QC_FILTERS[c][0] for c in cols]
     flags = obs.loc[obs["flag_overall"].astype(bool), cols].astype(bool)

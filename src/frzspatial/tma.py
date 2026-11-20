@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from ._utils import _log
+from ._utils import _log, _set_rows, _slide_rows
 
 __all__ = ["key_matrix", "assign_cores", "plot_core_grid", "cases", "add_clinical"]
 
@@ -88,11 +88,13 @@ def assign_cores(sdata, key, slide="", core_drift_tolerance=0.4, min_cells=30, f
     Parameters
     ----------
     sdata
-        A single slide: obs needs ``fov``, ``CenterX/Y_global_px`` and ``CenterX/Y_local_px``.
+        A single slide, or a merged object (:func:`merge_slides`) whose obs ``slide`` holds `slide`: then only that
+        slide's cells are assigned and the other slides' rows are left as they are. obs needs ``fov``,
+        ``CenterX/Y_global_px`` and ``CenterX/Y_local_px``.
     key
         TMA key oriented like the slide (:func:`key_matrix`).
     slide
-        Slide name, for messages and plots.
+        Slide name, for messages and plots; with a merged object, the slide to assign.
     core_drift_tolerance, min_cells, fov_size
         As in gbspatial: anchor drift limit (fraction of a grid step), minimum cells per core, FOV width in px.
     fov_overrides
@@ -103,12 +105,15 @@ def assign_cores(sdata, key, slide="", core_drift_tolerance=0.4, min_cells=30, f
 
     Returns
     -------
-    DataFrame
-        One row per FOV: ``fov``, ``core_str``, ``core_col``, ``core_row``, ``sample_id``, its box and whether it
-        straddles the grid. ``.attrs`` holds the grid, for :func:`plot_core_grid`. Sets obs ``core_str``,
-        ``core_col``, ``core_row`` and ``sample_id`` in place (NA for FOVs without a core).
+    None
+        Works in place: sets obs ``core_str``, ``core_col``, ``core_row`` and ``sample_id`` (NA for FOVs without a
+        core), and keeps the per-FOV table in ``uns["tma_fovs"][slide]`` (saved with the object): ``{"fovs":
+        DataFrame, "grid": dict}``, one row per FOV (``fov``, ``core_str``, ``core_col``, ``core_row``,
+        ``sample_id``, its box and whether it straddles the grid) and the grid :func:`plot_core_grid` draws.
     """
-    obs = sdata.tables[table].obs
+    full = sdata.tables[table].obs
+    rows = _slide_rows(full, slide)  # None: a single slide
+    obs = full if rows is None else full[rows]
     key = np.asarray(key, dtype=object)
     n_rows, n_cols = key.shape
     fov = obs["fov"].to_numpy().astype(int)
@@ -186,38 +191,66 @@ def assign_cores(sdata, key, slide="", core_drift_tolerance=0.4, min_cells=30, f
 
     # 6. Cells take their FOV's core
     per_cell = fovs.set_index("fov").reindex(fov)
-    obs["core_str"] = pd.Categorical(per_cell["core_str"].to_numpy())
-    obs["core_col"] = per_cell["core_col"].to_numpy(float)
-    obs["core_row"] = per_cell["core_row"].to_numpy(float)
-    obs["sample_id"] = pd.Categorical(per_cell["sample_id"].to_numpy())
-    no_core = obs["core_str"].isna()
-    _log(f"{slide}: {obs['core_str'].nunique()} cores; cells without a core: {int(no_core.sum())}"
-         + (f" (FOVs {', '.join(map(str, sorted(set(fov[no_core.to_numpy()]))))})" if no_core.any() else "")
+    for col, kind in (("core_str", "category"), ("core_col", "float"), ("core_row", "float"), ("sample_id", "category")):
+        _set_rows(full, col, per_cell[col].to_numpy(), rows, kind)
+    no_core = per_cell["core_str"].isna().to_numpy()
+    _log(f"{slide}: {per_cell['core_str'].nunique()} cores; cells without a core: {int(no_core.sum())}"
+         + (f" (FOVs {', '.join(map(str, sorted(set(fov[no_core]))))})" if no_core.any() else "")
          + (f"; fixed by hand: FOVs {', '.join(map(str, fov_overrides))}" if fov_overrides else ""))
 
     fovs = fovs.drop(columns=["x", "y", "vote"])
+    fovs["core_str"] = pd.Categorical(fovs["core_str"])  # categorical: NA-safe when written to Zarr
+    fovs["sample_id"] = pd.Categorical(fovs["sample_id"].where(fovs["sample_id"].notna(), None).astype(object))
     fovs.attrs = {"slide": slide, "v_lines": v_lines, "h_lines": h_lines, "n_rows": n_rows, "n_cols": n_cols,
                   "x_breaks": xmin + (np.arange(1, n_cols + 1) - 0.5) * xstep,
                   "y_breaks": ymax - (np.arange(1, n_rows + 1) - 0.5) * ystep}
+    grid = {k: v for k, v in fovs.attrs.items() if k != "slide"}
+    fovs.attrs = {}  # the grid is stored next to the table
+    sdata.tables[table].uns.setdefault("tma_fovs", {})[slide or "slide"] = {"fovs": fovs, "grid": grid}
+
+
+def _stored_fovs(sdata, slide, table):
+    """The per-FOV table assign_cores kept in uns for `slide`, grid in ``.attrs``; None if there is none."""
+    stored = getattr(sdata.tables[table], "uns", {}).get("tma_fovs", {})
+    if slide is None and len(stored) == 1:
+        slide = next(iter(stored))
+    if slide not in stored:
+        return None
+    fovs = stored[slide]["fovs"].copy()
+    grid = {k: (v.item() if np.ndim(v) == 0 and hasattr(v, "item") else v) for k, v in stored[slide]["grid"].items()}
+    fovs.attrs = {"slide": slide, **grid}  # Zarr gives scalars back as 0-d arrays
     return fovs
 
 
-def plot_core_grid(fovs, by="row", sdata=None, ax=None, table="table"):
-    """The core grid with each FOV coloured by its core row or column, labelled ``<fov> [<core>]``.
+def plot_core_grid(fovs=None, by="row", sdata=None, ax=None, table="table", fontsize=4, size=1, slide=None):
+    """The core grid with each FOV coloured by its core row, column or core.
 
-    Sweeping down the rows (or across the columns), the colours should step monotonically; a FOV out of step
+    With ``by="row"`` or ``"column"`` each FOV is a box labelled ``<fov> [<core>]``: sweeping down the rows (or
+    across the columns), the colours should step monotonically. With ``by="core"`` the cells are drawn, one hue per
+    core and one shade of it per FOV, with core names in bold and FOV numbers in grey. Either way, a FOV out of step
     belongs to another core (fix it with ``fov_overrides`` in :func:`assign_cores`).
 
     Parameters
     ----------
     fovs
-        Result of :func:`assign_cores`.
+        A per-FOV table with its grid in ``.attrs`` (default: the one :func:`assign_cores` kept in `sdata`'s
+        ``uns["tma_fovs"]`` for `slide`). It gives the FOV boxes of ``"row"`` and ``"column"`` and the grid lines and
+        C/R labels; with ``"core"`` the cores come from obs ``core_str``, and without a table the cells are drawn with
+        no grid.
     by
-        ``"row"`` or ``"column"``.
+        ``"row"``, ``"column"`` or ``"core"``.
     sdata
-        The slide, to draw a sample of its cells in grey behind the FOVs (optional).
+        The slide, to draw its cells: a sample in grey behind the FOV boxes (optional), or all of them with
+        ``by="core"`` (required, after :func:`assign_cores`). A merged object works too: only the cells with
+        ``obs["slide"]`` equal to `slide` are drawn.
     ax
-        Matplotlib axes (default: a new 7 x 10 in figure).
+        Matplotlib axes (default: a new figure, 7 x 10 in for rows and columns, matplotlib's size for cores).
+    fontsize
+        Size of the FOV labels; core names are 1.6 times and the title 2.5 times larger.
+    size
+        Marker size of the cells with ``by="core"``.
+    slide
+        The slide to draw from a merged `sdata` (default: the slide of `fovs`).
 
     Returns
     -------
@@ -226,11 +259,31 @@ def plot_core_grid(fovs, by="row", sdata=None, ax=None, table="table"):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
 
-    g = fovs.attrs
+    if by not in ("row", "column", "core"):
+        raise ValueError(f"by must be 'row', 'column' or 'core', not {by!r}")
+    if by == "core" and sdata is None:
+        raise ValueError("by='core' draws the cells: give sdata")
+    if fovs is None and sdata is not None:
+        fovs = _stored_fovs(sdata, slide, table)
+    if by != "core" and fovs is None:
+        raise ValueError(f"by={by!r} draws the FOV boxes: give the sdata assign_cores worked on (or fovs)")
+    g = fovs.attrs if fovs is not None else {}
+    slide = slide or g.get("slide")
     if ax is None:
-        _, ax = plt.subplots(figsize=(7, 10))
+        _, ax = plt.subplots(figsize=None if by == "core" else (7, 10))
+    obs = None
     if sdata is not None:
         obs = sdata.tables[table].obs
+        if "slide" in obs and slide:
+            obs = obs[(obs["slide"].astype(str) == slide).to_numpy()]
+    if by == "core":
+        _cells_by_core(ax, obs, fontsize, size)
+        ax.set_title(f"{slide}: FOVs by core" if slide else "FOVs by core", fontsize=2.5 * fontsize)
+        if fovs is None:  # no grid: just the cells, row 1 at the top as in the key and the grid plots
+            ax.set_aspect("equal")
+            ax.set_axis_off()
+            return ax
+    elif obs is not None:
         cells = obs.groupby("fov", observed=True).sample(n=200, replace=True, random_state=0) \
             .drop_duplicates()[["CenterX_global_px", "CenterY_global_px"]].to_numpy()
         ax.scatter(*cells.T, s=0.2, c="0.6", alpha=0.4, lw=0)
@@ -240,22 +293,45 @@ def plot_core_grid(fovs, by="row", sdata=None, ax=None, table="table"):
         ax.axhline(y, c="0.4", ls="--", alpha=0.6, lw=0.8)
     colours = plt.get_cmap("tab20").colors
     col = "core_row" if by == "row" else "core_col"
-    for _, f in fovs.iterrows():
+    for _, f in fovs.iterrows() if by != "core" else ():
         c = colours[int(f[col] - 1) % 20] if pd.notna(f[col]) else "none"
         ax.add_patch(Rectangle((f["xmin"], f["ymin"]), f["xmax"] - f["xmin"], f["ymax"] - f["ymin"], fc=c, ec="k",
                                alpha=0.3))
         ax.text((f["xmin"] + f["xmax"]) / 2, (f["ymin"] + f["ymax"]) / 2,
                 f"{f['fov']}\n[{f['core_str'] if pd.notna(f['core_str']) else 'NA'}]", ha="center", va="center",
-                fontsize=4, fontweight="bold")
+                fontsize=fontsize, fontweight="bold")
     ax.set_xticks(g["x_breaks"], [f"C{i}" for i in range(1, g["n_cols"] + 1)], fontweight="bold")
     ax.set_yticks(g["y_breaks"], [f"R{i}" for i in range(1, g["n_rows"] + 1)], fontweight="bold")
     ax.set_xlim(g["v_lines"][0] - 0.05 * np.ptp(g["v_lines"]), g["v_lines"][-1] + 0.05 * np.ptp(g["v_lines"]))
     ax.set_ylim(g["h_lines"][0] - 0.05 * np.ptp(g["h_lines"]), g["h_lines"][-1] + 0.05 * np.ptp(g["h_lines"]))
     ax.set_aspect("equal")
-    ax.set_title(f"{g['slide']}: FOVs by core {by}", fontsize=10)
+    if by != "core":
+        ax.set_title(f"{slide}: FOVs by core {by}", fontsize=2.5 * fontsize)
     for s in ax.spines.values():
         s.set_visible(False)
     return ax
+
+
+def _cells_by_core(ax, obs, fontsize, size):
+    """Every cell coloured by its core (obs ``core_str``: one hue per core, a shade per FOV); core and FOV labels."""
+    import colorsys
+
+    if "core_str" not in obs:
+        raise KeyError("obs has no core_str: run assign_cores first")
+    cells = pd.DataFrame({"fov": obs["fov"].to_numpy().astype(int), "x": obs["CenterX_global_px"].to_numpy(float),
+                          "y": obs["CenterY_global_px"].to_numpy(float),
+                          "core": obs["core_str"].astype(object).to_numpy()})
+    fov_core = cells.dropna(subset=["core"]).drop_duplicates("fov").sort_values("fov")
+    shade = {}
+    for i, (_, f) in enumerate(fov_core.groupby("core")):
+        for v, fov in zip(np.linspace(0.45, 1, len(f)), f["fov"]):
+            shade[fov] = colorsys.hsv_to_rgb((i * 0.618) % 1, 0.75, v)  # golden-ratio hues: neighbours differ
+    ax.scatter(cells["x"], cells["y"], s=size, c=[shade.get(f, (0.85, 0.85, 0.85)) for f in cells["fov"]], lw=0,
+               rasterized=True)
+    for fov, (x, y) in cells.groupby("fov")[["x", "y"]].median().iterrows():
+        ax.text(x, y, fov, ha="center", va="top", fontsize=fontsize, color="dimgrey")
+    for core, (x, y) in cells.dropna(subset=["core"]).groupby("core")[["x", "y"]].median().iterrows():
+        ax.text(x, y, core, ha="center", va="bottom", fontsize=1.6 * fontsize, fontweight="bold")
 
 
 def cases(slide, sample_id, group_mn, sid=None):
@@ -292,20 +368,27 @@ def add_clinical(sdata, slide, clinical, slides=None, table="table"):
     Parameters
     ----------
     sdata
-        A single slide, after :func:`assign_cores`.
+        A single slide after :func:`assign_cores`, or a merged object (:func:`merge_slides`) whose obs ``slide``
+        holds `slide`: then only that slide's rows are set, and the other slides' rows are left as they are.
     slide
         Its name.
     clinical
         Case table (:func:`cases`), all slides; rows of other slides are ignored.
     slides
-        All slide names, as categories of ``slide`` (so that merged slides share them). Default: just `slide`.
+        All slide names, as categories of ``slide`` (so that merged slides share them). Default: just `slide`, or
+        the merged object's slides.
     """
     obs = sdata.tables[table].obs
-    hit = obs[["sample_id"]].astype(str).merge(clinical[clinical["slide"] == slide], how="left", on="sample_id")
-    obs["slide"] = pd.Categorical([slide] * len(obs), categories=list(slides or [slide]))
-    obs["core_id"] = pd.Categorical(slide + "_" + obs["core_str"].astype(str))
+    rows = _slide_rows(obs, slide)  # None: a single slide
+    here = obs if rows is None else obs[rows]
+    hit = here[["sample_id"]].astype(str).merge(clinical[clinical["slide"] == slide], how="left", on="sample_id")
+    if rows is None:
+        obs["slide"] = pd.Categorical([slide] * len(obs), categories=list(slides or [slide]))
+    elif slides is not None:
+        obs["slide"] = pd.Categorical(obs["slide"].astype(str), categories=list(slides))
+    _set_rows(obs, "core_id", (slide + "_" + here["core_str"].astype(str)).to_numpy(), rows, "category")
     for c in ["group", "group_mn", "sid"]:
-        obs[c] = pd.Categorical(hit[c].to_numpy())
-    unknown = sorted(set(obs.loc[hit["group"].isna().to_numpy(), "sample_id"].dropna().astype(str)))
-    print(f"{slide}: {obs['group_mn'].value_counts(dropna=False).to_dict()}; cases without clinical data:",
-          ", ".join(unknown) or "none")
+        _set_rows(obs, c, hit[c].to_numpy(), rows, "category")
+    unknown = sorted(set(here.loc[hit["group"].isna().to_numpy(), "sample_id"].dropna().astype(str)))
+    groups = pd.Series(hit["group_mn"].to_numpy()).value_counts(dropna=False).to_dict()
+    print(f"{slide}: {groups}; cases without clinical data:", ", ".join(unknown) or "none")

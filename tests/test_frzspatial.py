@@ -126,6 +126,12 @@ def test_plots(sdata):
     assert pal == {"Glomerulus": "#1f77b4"}
     assert plot_core(sdata, "C1R1", genes={"G1": "magenta"}) is not None
     assert plot_core(sdata, "C1R1", color="manual_annotation", palette=pal) is not None
+    # A Series (cells where it is NA grey) is plotted without staying in the table; the legend can go outside
+    obs = sdata.tables["table"].obs
+    sel = obs["manual_annotation"].where(obs["manual_annotation"] == "Glomerulus").rename("glomeruli")
+    ax = plot_core(sdata, "C1R1", color=sel, palette=pal, legend_outside=True, legend_fontsize=7)
+    assert "_plot_core" not in obs and ax.get_title().endswith("glomeruli")
+    assert ax.get_legend() is None or ax.get_legend().get_texts()[0].get_fontsize() == 7
     assert plot_slide_overview(sdata, "core_str", dpi=50) is not None
 
 
@@ -137,11 +143,26 @@ def test_compute_sbr(sdata):
     t = sdata.tables["table"]
     X = sp.hstack([t.X, sp.csr_matrix(np.ones((t.n_obs, 2)))]).tocsr()  # two negative probes, 1 count each
     t2 = ad.AnnData(X, obs=t.obs.copy(), var=pd.DataFrame(index=list(t.var_names) + ["Negative1", "Negative2"]))
-    sbr = fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=0.005)
+    assert fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=0.005) is None
+    sbr = t2.obs["SBR"].to_numpy()
     assert np.isfinite(sbr).all() and (sbr > 0).all()
     assert {"SBR", "log2SBR", "flag_sbr"} <= set(t2.obs)
-    alone = fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=1e-6)  # no neighbours: own counts
-    assert np.allclose(alone, np.asarray(t.X.mean(axis=1)).ravel())
+    fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=1e-6)  # no neighbours: own counts
+    assert np.allclose(t2.obs["SBR"], np.asarray(t.X.mean(axis=1)).ravel())
+
+    # Two slides on top of each other (same coordinates): per slide, the same SBR as the slide alone
+    fs.compute_sbr(SimpleNamespace(tables={"table": t2}), bandwidth=0.005)
+    alone = t2.obs["SBR"].to_numpy()
+    one = t2.copy()
+    one.obs = one.obs.drop(columns=["slide", "SBR", "log2SBR", "flag_sbr"])
+    t3 = ad.concat({"S1": one, "S2": one}, label="slide", index_unique="-")
+    s2 = t3.obs["slide"].to_numpy() == "S2"
+    t3.X = (sp.diags(np.where(s2, 2.0, 1.0)) @ t3.X).tocsr()  # S2 has twice the counts, so a mix would show
+    merged = SimpleNamespace(tables={"table": t3})
+    fs.compute_sbr(merged, bandwidth=0.005, slide="S1")
+    assert np.allclose(t3.obs["SBR"].to_numpy()[: t2.n_obs], alone) and t3.obs["SBR"].iloc[t2.n_obs:].isna().all()
+    fs.compute_sbr(merged, bandwidth=0.005, slide="S2")
+    assert np.allclose(t3.obs["SBR"].to_numpy()[t2.n_obs:], alone)  # counts and background both doubled
 
 
 def test_key_matrix_and_clinical(sdata):
@@ -156,6 +177,23 @@ def test_key_matrix_and_clinical(sdata):
     assert obs.loc[obs["fov"] == 1, "group"].eq("MN").all() and obs.loc[obs["fov"] == 2, "group"].isna().all()
     assert list(obs["slide"].cat.categories) == ["S1", "S2"] and obs["core_id"].iloc[0] == "S1_C1R1"
 
+    # A merged object: each slide gets its own cases; the other slide's rows and the slide column are kept
+    import anndata as ad
+    from types import SimpleNamespace
+
+    one = sdata.tables["table"].copy()
+    one.obs = one.obs.drop(columns=["slide", "group", "group_mn", "sid", "core_id"])
+    merged = ad.concat({"S1": one, "S2": one}, label="slide", index_unique="-")
+    m = SimpleNamespace(tables={"table": merged})
+    clinical = pd.concat([cases("S1", ["37128"], "PLA2R"), cases("S2", ["37128"], "NELL1")])
+    add_clinical(m, "S1", clinical, ["S1", "S2"])
+    mo, s2 = merged.obs, merged.obs["slide"].to_numpy() == "S2"
+    assert mo.loc[~s2 & (mo["fov"] == 1).to_numpy(), "group_mn"].eq("PLA2R").all() and mo.loc[s2, "group_mn"].isna().all()
+    add_clinical(m, "S2", clinical, ["S1", "S2"])
+    assert mo.loc[s2 & (mo["fov"] == 1).to_numpy(), "group_mn"].eq("NELL1").all()
+    assert mo.loc[~s2 & (mo["fov"] == 1).to_numpy(), "group_mn"].eq("PLA2R").all()
+    assert set(mo["slide"]) == {"S1", "S2"} and mo.loc[s2, "core_id"].astype(str).str.startswith("S2_").all()
+
 
 def test_assign_cores(sdata):
     import matplotlib
@@ -165,12 +203,38 @@ def test_assign_cores(sdata):
 
     sdata.tables["table"].obs = sdata.tables["table"].obs.drop(columns=["core_str"])
     obs = sdata.tables["table"].obs
-    fovs = assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100)
-    assert fovs.set_index("fov")["core_str"].to_dict() == {1: "C1R1", 2: "C2R1"}
+    assert assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100) is None
+    fovs = sdata.tables["table"].uns["tma_fovs"]["S1"]["fovs"]
+    assert fovs.set_index("fov")["core_str"].astype(str).to_dict() == {1: "C1R1", 2: "C2R1"}
     assert obs.groupby("fov", observed=True)["sample_id"].first().astype(str).to_dict() == {1: "A", 2: "B"}
-    fovs = assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100, fov_overrides={2: "C1R1"})
+    assign_cores(sdata, key_matrix([["A", "B"]]), "S1", min_cells=1, fov_size=100, fov_overrides={2: "C1R1"})
     assert set(obs["sample_id"]) == {"A"} and set(obs["core_col"]) == {1.0}
-    plot_core_grid(fovs, "column", sdata=sdata)
+    plot_core_grid(by="column", sdata=sdata)
+    ax = plot_core_grid(by="core", sdata=sdata, fontsize=10)
+    assert {t.get_text() for t in ax.texts} == {"1", "2", "C1R1"}
+    fovs = sdata.tables["table"].uns["tma_fovs"]["S1"]["fovs"].copy()   # an explicit table, without its grid
+    fovs.attrs = {"slide": "S1", **sdata.tables["table"].uns["tma_fovs"]["S1"]["grid"]}
+    # The table kept in uns draws the grid, also after a Zarr round trip
+    import tempfile
+
+    import anndata as ad
+
+    tb = sdata.tables["table"]
+    assert tb.uns["tma_fovs"]["S1"]["fovs"]["core_str"].astype(str).tolist() == ["C1R1", "C1R1"]
+    with tempfile.TemporaryDirectory() as d:
+        tb.write_zarr(f"{d}/t.zarr")
+        sdata.tables["table"] = ad.read_zarr(f"{d}/t.zarr")
+    for by in ("core", "row"):
+        ax = plot_core_grid(by=by, sdata=sdata, slide="S1")
+        assert [t.get_text() for t in ax.get_xticklabels()] == ["C1", "C2"]
+    # Without it: cores from obs, no grid; the sweeps need the table
+    del sdata.tables["table"].uns["tma_fovs"]
+    ax = plot_core_grid(by="core", sdata=sdata, slide="S1")
+    assert {t.get_text() for t in ax.texts} == {"1", "2", "C1R1"}
+    with pytest.raises(ValueError, match="give sdata"):
+        plot_core_grid(fovs, "core")
+    with pytest.raises(ValueError, match="assign_cores worked on"):
+        plot_core_grid(by="row", sdata=sdata)
 
 
 def test_fov_integrity():
@@ -196,11 +260,29 @@ def test_fov_integrity():
     class Slide:
         tables = {"table": table}
 
-    res = fov_integrity(Slide, slide="T")
-    assert res["flagged_totalcounts"] == ["T0"] and res["flagged"][0] == "T0"
+    assert fov_integrity(Slide, slide="T") is None
     assert table.obs.loc[table.obs["fov"] == 0, "flag_fov_integrity"].all()
+    assert table.obs.loc[table.obs["fov"] == 0, "flag_fov_totalcounts"].all()
     assert not table.obs.loc[table.obs["fov"] != 0, "flag_fov_totalcounts"].any()
     assert str(table.obs["fov_signal_loss_cat"].iloc[0]) == "<-2"
+    assert list(table.obs["fov_signal_loss_cat"].cat.categories) == ["<-2", "-2:-1", "-1:0", "0:1", "1:2", ">2"]
+
+    # A merged object: slide T next to a healthy copy U; each checked on its own gives T's result and no flags on U
+    alone = table.obs.copy()
+    healthy = ad.AnnData(X=sp.csr_matrix(rng.poisson(np.ones_like(lam) * lam[1:2])), obs=obs.copy(), var=table.var)
+    merged = ad.concat({"T": ad.AnnData(X=X, obs=obs.copy(), var=table.var), "U": healthy}, label="slide",
+                       index_unique="-")
+
+    class Merged:
+        tables = {"table": merged}
+
+    fov_integrity(Merged, slide="T")
+    t = (merged.obs["slide"] == "T").to_numpy()
+    for col in ("flag_fov_integrity", "flag_fov_totalcounts", "fov_signal_loss"):
+        assert np.allclose(merged.obs.loc[t, col].astype(float), alone[col].astype(float), equal_nan=True), col
+    assert not merged.obs.loc[~t, "flag_fov_integrity"].any()   # U not checked yet: False
+    fov_integrity(Merged, slide="U")
+    assert not merged.obs.loc[~t, "flag_fov_integrity"].any() and merged.obs.loc[t, "flag_fov_integrity"].sum() > 0
 
 
 def test_slide_with_cells_and_plot_annotations(sdata, tmp_path):
@@ -250,6 +332,21 @@ def test_qc_flags_and_merge(sdata):
     t = merged.tables["table"]
     assert t.n_obs == 4 and "cell_boundaries-S1" in merged.shapes and list(t.obs["slide"].cat.categories) == ["S1"]
     assert list(t.obs_names) == t.obs["cell"].astype(str).tolist()
+
+    # Merged first, QC per slide, then drop_cells: the same cells kept as merge_slides(drop="flag_overall")
+    from frzspatial import drop_cells
+
+    merged = merge_slides({"S1": sdata}, drop=None)
+    t = merged.tables["table"]
+    t.obs["flag_overall"] = False   # cleared: qc_flags must set it again for this slide
+    summary2 = qc_flags(merged, count_min=None, area_max=None, sbr_min=0, slide="S1")
+    assert summary2.equals(summary) and t.obs["flag_overall"].sum() == 4
+    assert plot_qc(merged, sbr_min=0, slide="S1") is not None and plot_qc_flags(merged, slide="S1") is not None
+    drop_cells(merged)
+    t = merged.tables["table"]
+    assert t.n_obs == 4 and not t.obs["flag_overall"].any()
+    assert len(t.uns["dropped_cells"]) == 4 and not set(t.uns["dropped_cells"]) & set(t.obs_names)
+    assert sorted(merged.shapes["cell_boundaries-S1"].index) == sorted(t.obs_names)
 
 
 def test_rtools_roundtrip(tmp_path):

@@ -54,9 +54,12 @@ def despotx_input(sdata, out_dir, label="ist_lineage", merge=None, min_cells=20,
     keep = ~_ctrl(tb.var_names)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    # Plain (object) string names: the cluster's anndata (< 0.11) cannot write the nullable strings a newer one reads
+    # them back as, and DeSpotX failed saving adjusted.h5ad at the end of the 2026-11-05 run
+    names = lambda ix: pd.Index(np.asarray(ix, dtype=object), dtype=object)
     ad.AnnData(X=sp.csr_matrix(tb.X)[:, keep].astype("int32"),
-               obs=pd.DataFrame({"dx_celltype": labels.to_numpy()}, index=tb.obs_names),
-               var=pd.DataFrame(index=tb.var_names[keep]), obsm={"spatial": xy}).write_h5ad(out / "despotx_in.h5ad")
+               obs=pd.DataFrame({"dx_celltype": labels.to_numpy()}, index=names(tb.obs_names)),
+               var=pd.DataFrame(index=names(tb.var_names[keep])), obsm={"spatial": xy}).write_h5ad(out / "despotx_in.h5ad")
     _log(f"wrote {out / 'despotx_in.h5ad'}: {tb.n_obs} cells, {int(keep.sum())} genes")
     return labels.value_counts()
 

@@ -5,6 +5,7 @@ Each function returns the matplotlib axes without showing them: call ``plt.show(
 
 import warnings
 
+import numpy as np
 import pandas as pd
 import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 
@@ -74,7 +75,8 @@ def plot_slide_overview(sdata, color, title=None, figsize=(12, 20), dpi=200, fon
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
-              fill_alpha=0.5, image=True, outline_alpha=0.6, ax=None, cmap="viridis", layer=None, outline_width=None):
+              fill_alpha=0.5, image=True, outline_alpha=0.6, ax=None, cmap="viridis", layer=None, outline_width=None,
+              legend_outside=False, legend_fontsize=None):
     """One core of a single slide: its composite image, cell outlines and selected transcripts.
 
     Parameters
@@ -88,7 +90,8 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
     color
         obs column to fill the cells by (e.g. ``"manual_annotation"``), or a gene: each cell filled by its counts
         (`layer`, default ``X``) on `cmap`. Without it, cells are outlined in yellow. A list draws one panel per
-        entry, side by side (returns their axes).
+        entry, side by side (returns their axes). Or a Series over the table's cells (e.g. a column masked with
+        ``.where(...)``): plotted as a column, with the cells where it is NA in grey, and not kept in the table.
     palette
         ``{value: colour}`` for `color` (default: the column's stored colours, e.g. from a UMAP, else scanpy's); cells
         with other values or NA are drawn grey.
@@ -106,6 +109,8 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
         Colour map and table layer for a gene `color`.
     outline_width
         Width of the cell borders (default: 0.3 on the image, 0.6 without it).
+    legend_outside, legend_fontsize
+        Put the legend to the right of the core, without a frame; its font size (default: matplotlib's).
 
     Examples
     --------
@@ -114,16 +119,26 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
     ...           palette=annotation_palette(classes))  # doctest: +SKIP
     >>> plot_core(usc, "C4R7", slide="MN2", color=["CFH", "VCAM1"], image=False)  # doctest: +SKIP
     """
+    kw = dict(genes=genes, palette=palette, title=title, core_key=core_key, slide=slide, fill_alpha=fill_alpha,
+              image=image, outline_alpha=outline_alpha, cmap=cmap, layer=layer, outline_width=outline_width,
+              legend_outside=legend_outside, legend_fontsize=legend_fontsize)
+    if isinstance(color, pd.Series):   # a temporary column, removed afterwards
+        table, tmp = sdata.tables["table"], "_plot_core"
+        table.obs[tmp] = color.reindex(table.obs_names)
+        kw["title"] = title or f"{slide + ' ' if slide else ''}{core}: {color.name or 'selection'}"
+        try:
+            return plot_core(sdata, core, color=tmp, ax=ax, **kw)
+        finally:
+            table.obs.drop(columns=tmp, inplace=True, errors="ignore")
+            table.uns.pop(f"{tmp}_colors", None)
     if isinstance(color, (list, tuple)):
         import matplotlib.pyplot as plt
 
         if ax is None:
-            _, ax = plt.subplots(1, len(color), figsize=(8 * len(color), 8), squeeze=False)
+            h = plt.rcParams["figure.figsize"][1]   # square panels at the session's figure height
+            _, ax = plt.subplots(1, len(color), figsize=(h * len(color), h), squeeze=False)
             ax = ax[0]
-        return [plot_core(sdata, core, genes=genes, color=c, palette=palette, title=title, core_key=core_key,
-                          slide=slide, fill_alpha=fill_alpha, image=image, outline_alpha=outline_alpha, ax=a,
-                          cmap=cmap, layer=layer, outline_width=outline_width)
-                for c, a in zip(color, ax)]
+        return [plot_core(sdata, core, color=c, ax=a, **kw) for c, a in zip(color, ax)]
     suffix, cs = coordinate_system(sdata, slide) if slide else ("", "global")
     shapes = f"cell_boundaries{suffix}"
     comps = [name for name in sdata.images if name.endswith(f"_image{suffix}")] if image else []
@@ -180,6 +195,13 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
         ax = pl.pl.show(coordinate_systems=cs, title=title, show=False, return_ax=True)
 
     ax.invert_yaxis()
+    leg = ax.get_legend()
+    if leg is not None and legend_outside:
+        ax.legend(handles=leg.legend_handles, labels=[t.get_text() for t in leg.get_texts()], loc="center left",
+                  bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=legend_fontsize)
+    elif leg is not None and legend_fontsize:
+        for text in leg.get_texts():
+            text.set_fontsize(legend_fontsize)
     return ax
 
 
@@ -269,7 +291,48 @@ def plot_composition(obs, color, sample="sample_id", group="group_mn", palette=N
     return fig
 
 
-def plot_umap(table, color, palette=None, labels=True, legend=False, title="", size=3, fontsize=12):
+def _densest_point(xy, bins=150, extent=None):
+    """Centre of the most crowded bin of a 2D histogram (lightly smoothed): where most of a group's cells are."""
+    from scipy.ndimage import gaussian_filter
+
+    h, ex, ey = np.histogram2d(xy[:, 0], xy[:, 1], bins=bins, range=extent)
+    i, j = np.unravel_index(np.argmax(gaussian_filter(h, 1.5)), h.shape)
+    return (ex[i] + ex[i + 1]) / 2, (ey[j] + ey[j + 1]) / 2
+
+
+def _place_labels(ax, xy, group, fontsize):
+    """Each group's name at its densest point, largest groups first; a name that would overlap one already placed
+    goes to the nearest free spot on rings around that point. adjustText was dropped (2026-11-16): it also pushes a
+    name away from its own point, and moved names far from their cells."""
+    import matplotlib.patheffects as pe
+
+    extent = [[xy[:, 0].min(), xy[:, 0].max()], [xy[:, 1].min(), xy[:, 1].max()]]
+    g = group.to_numpy()
+    sizes = group.value_counts()
+    renderer = ax.figure.canvas.get_renderer()
+    to_px, placed = ax.transData.transform, []
+    for c in sizes[sizes > 0].index:
+        x0, y0 = to_px(_densest_point(xy[g == c], extent=extent))
+        t = ax.text(0, 0, c, fontsize=fontsize, weight="bold", ha="center", va="center",
+                    path_effects=[pe.withStroke(linewidth=3, foreground="w")], transform=None)
+        t.set_position((x0, y0))
+        w, h = t.get_window_extent(renderer).width, t.get_window_extent(renderer).height
+        best = (x0, y0)
+        for r in np.arange(0, 40) * h / 2:  # rings half a text height apart
+            ring = [(x0, y0)] if r == 0 else [(x0 + r * np.cos(a), y0 + r * np.sin(a))
+                                              for a in np.linspace(0, 2 * np.pi, int(8 + r / h * 8), endpoint=False)]
+            free = [(x, y) for x, y in ring
+                    if all(abs(x - px) > (w + pw) / 2 or abs(y - py) > (h + ph) / 2 for px, py, pw, ph in placed)]
+            if free:
+                best = free[0]
+                break
+        placed.append((*best, w, h))
+        t.set_transform(ax.transData)
+        t.set_position(ax.transData.inverted().transform(best))
+
+
+def plot_umap(table, color, palette=None, labels=True, legend=False, title="", size=3, fontsize=12,
+              legend_fontsize=None, figsize=None, dpi=None, min_label_frac=0):
     """UMAP coloured by an obs column, as main.Rmd's UMAP panels.
 
     Parameters
@@ -281,9 +344,22 @@ def plot_umap(table, color, palette=None, labels=True, legend=False, title="", s
     palette
         ``{value: colour}`` for a single categorical `color` (stored in ``uns[f"{color}_colors"]``).
     labels
-        Name each group on the plot, overlaps moved apart (adjustText).
+        Name each group on the plot where most of its cells are (the densest point, not the median: a group spread over
+        several islands has its median between them). A name that would cover another moves by the smallest step that
+        clears it.
+    min_label_frac
+        Name only groups with at least this fraction of the cells (0: all). With many groups (97 atlas types) the small
+        ones' names crowd the plot's edges.
     legend
-        Also a legend above the plot (useful with `palette`).
+        Also a legend (useful with `palette`): True or ``"top"`` above the plot in 4 columns, ``"right"`` to its right
+        in one column.
+    fontsize, legend_fontsize
+        Names on the plot; legend entries (None: `fontsize`, its title a bit larger).
+    figsize
+        (width, height) in inches of a new figure (None: matplotlib's default). Give the chunk's ``fig-width`` and
+        ``fig-height``: a figure of another shape is shrunk into that box, with blank margins.
+    dpi
+        Resolution of that new figure (None: matplotlib's default, blurry at 366k cells).
 
     Returns
     -------
@@ -296,19 +372,28 @@ def plot_umap(table, color, palette=None, labels=True, legend=False, title="", s
         cats = table.obs[color].cat.categories
         table.uns[f"{color}_colors"] = [palette.get(c, "#BDBDBD") for c in cats]
     single = isinstance(color, str)
+    if single and figsize:
+        _, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    else:
+        ax = None
     ax = sc.pl.umap(table, color=color, title=title if single else None, size=size, frameon=True, show=False,
-                    legend_loc="on data" if single and labels else "right margin",
-                    legend_fontsize=fontsize, legend_fontoutline=2)
-    if single and labels:
-        from adjustText import adjust_text
-
-        adjust_text(ax.texts, ax=ax)
+                    legend_loc="none" if single else "right margin", ax=ax)
     if single and legend:
         cats = table.obs[color].cat.categories
         handles = [plt.Line2D([], [], marker="o", ls="", color=c) for c in table.uns[f"{color}_colors"]]
-        ax.legend(handles, cats, title=color, loc="lower center", bbox_to_anchor=(0.5, 1.01), ncols=4, fontsize=10,
-                  frameon=False, columnspacing=0.6, handletextpad=0.2)
+        where = ({"loc": "center left", "bbox_to_anchor": (1.01, 0.5), "ncols": 1} if legend == "right" else
+                 {"loc": "lower center", "bbox_to_anchor": (0.5, 1.01), "ncols": 4})
+        lf = legend_fontsize or fontsize
+        ax.legend(handles, cats, title=color, fontsize=lf, title_fontsize=lf * 1.1, markerscale=lf / 10,
+                  frameon=False, columnspacing=0.6, handletextpad=0.2, **where)
     plt.tight_layout()
+    # Names after the layout: they are spaced in screen pixels, which the layout would change
+    if single and labels:
+        group = table.obs[color]
+        if min_label_frac:
+            share = group.value_counts(normalize=True)
+            group = group.where(group.isin(share.index[share >= min_label_frac]))
+        _place_labels(ax, np.asarray(table.obsm["X_umap"]), group, fontsize)
     return ax
 
 

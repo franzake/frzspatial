@@ -2,7 +2,7 @@
 
 Modules
 -------
-frzspatial.io        build_sdata, load_slides, save_table, merge_slides, slide_with_cells: reading and merging
+frzspatial.io        build_sdata, load_slides, save_table, merge_slides, drop_cells, slide_with_cells: reading and merging
 frzspatial.core      build_core, core_box: a core or slide stitched into one image and mask
 frzspatial.annotate  annotations_to_obs and GeoJSON helpers (no napari needed)
 frzspatial.pl        plot_slide_overview, plot_core, plot_annotations, annotation_palette
@@ -32,7 +32,7 @@ from .qc import compute_sbr, fov_integrity, panel_barcodes, plot_qc, plot_qc_fla
 from .tma import add_clinical, assign_cores, cases, key_matrix, plot_core_grid
 from . import niches, reference, rtools
 from .despotx import apply_despotx, despotx_input
-from .io import add_slide_view, build_sdata, load_slides, merge_slides, save_table, slide_with_cells
+from .io import add_slide_view, build_sdata, drop_cells, load_slides, merge_slides, save_table, slide_with_cells
 
 try:
     __version__ = version("frzspatial")
@@ -65,6 +65,7 @@ __all__ = [
     "key_matrix",
     "load_slides",
     "merge_slides",
+    "drop_cells",
     "niches",
     "panel_barcodes",
     "plot_core_grid",

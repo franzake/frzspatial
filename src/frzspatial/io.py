@@ -68,6 +68,7 @@ __all__ = [
     "save_table",
     "slide_with_cells",
     "merge_slides",
+    "drop_cells",
     "add_slide_view",
     "read_table",
     "read_polygons",
@@ -531,6 +532,44 @@ def merge_slides(slides, drop="flag_overall", table="table"):
     tb.obs["slide"] = pd.Categorical(tb.obs["slide"].astype(str), categories=list(slides))
     _log(f"merged: {tb.obs['slide'].value_counts(sort=False).to_dict()}")
     return merged
+
+
+def drop_cells(sdata, drop="flag_overall", table="table"):
+    """Remove flagged cells from the table and the cell outlines, in place.
+
+    For a merged object (:func:`merge_slides` with ``drop=None``) after QC, or a single slide: the table keeps the
+    cells whose obs `drop` is False, and every ``cell_boundaries*`` shape element keeps their outlines (images, masks
+    and transcripts are left as they are). The names of the removed cells are added to the table's
+    ``uns["dropped_cells"]`` (saved with the object): FastReseg treats them as extracellular
+    (:func:`frzspatial.rtools.fastreseg_inputs`). Prints the cells kept per slide.
+
+    Parameters
+    ----------
+    sdata
+        SpatialData whose table's obs names are the outlines' index (as after :func:`merge_slides`).
+    drop
+        Boolean obs column of the cells to remove (e.g. ``"flag_overall"`` from :func:`qc_flags`).
+    table
+        Table element.
+
+    Notes
+    -----
+    The table is replaced by a new AnnData: names bound to the old one (e.g. ``adata = sdata.tables["table"]``)
+    must be set again.
+    """
+    tb = sdata.tables[table]
+    if drop not in tb.obs:
+        raise KeyError(f"no obs column {drop!r}: flag the cells first (qc_flags)")
+    keep = ~tb.obs[drop].astype(bool).to_numpy()
+    kept = tb[keep].copy()
+    before = [str(c) for c in tb.uns.get("dropped_cells", [])]
+    kept.uns["dropped_cells"] = np.array(before + tb.obs_names[~keep].astype(str).tolist(), dtype=object)
+    for name in [n for n in sdata.shapes if n == "cell_boundaries" or n.startswith("cell_boundaries-")]:
+        shp = sdata.shapes[name]
+        sdata.shapes[name] = shp.loc[shp.index.isin(kept.obs_names)]
+    sdata.tables[table] = kept
+    by = kept.obs["slide"].value_counts(sort=False).to_dict() if "slide" in kept.obs else {"cells": kept.n_obs}
+    _log(f"dropped {int((~keep).sum())} / {len(keep)} cells ({drop}); kept: {by}")
 
 
 def slide_with_cells(sdata, other, slide, table="table"):
