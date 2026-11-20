@@ -11,67 +11,7 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 
 from .core import coordinate_system, core_box
 
-__all__ = ["plot_slide_overview", "plot_core", "annotation_palette", "plot_annotations", "plot_composition",
-           "plot_umap", "plot_niche_composition", "plot_share_by_group"]
-
-
-def plot_slide_overview(sdata, color, title=None, figsize=(12, 20), dpi=200, fontsize=8, slide=None, palette=None,
-                        labels=True):
-    """All cells of a single slide coloured by an obs column, each group labelled at its median position.
-
-    Cells are rasterised by datashader at ``figsize × dpi`` pixels: at ~1000 px across a slide one pixel is about
-    one cell, so raise `dpi` for sharper cores.
-
-    Parameters
-    ----------
-    sdata
-        A single slide, or a merged object with `slide`.
-    color
-        obs column, e.g. ``"core_str"`` or ``"fov"``.
-    title
-        Plot title (default: `color`).
-    figsize, dpi
-        Figure size (inches) and resolution.
-    fontsize
-        Size of the group labels.
-    slide
-        For a merged object: the slide to draw (its ``cell_boundaries-<slide>`` in ``global-<slide>``).
-    palette
-        ``{value: colour}`` for `color` (default: the column's stored colours, e.g. from a UMAP, else scanpy's); cells
-        with other values are drawn grey, e.g. to highlight a few cell types.
-    labels
-        Name each group at its median position (e.g. cores); False shows a legend instead (e.g. cell types).
-    """
-    from ._palette import column_palette
-
-    suffix, cs = coordinate_system(sdata, slide) if slide else ("", "global")
-    table = sdata.tables["table"]
-    obs = table.obs
-    if slide and "slide" in obs:
-        obs = obs[obs["slide"].astype(str) == slide]
-    extra = {}
-    if palette is not None or hasattr(obs[color], "cat"):  # categorical: values not in the palette are drawn grey
-        pal = column_palette(table, color, palette)
-        groups = [g for g in pal if g in set(obs[color].dropna().astype(str))]
-        extra = {"groups": groups, "palette": [pal[g] for g in groups], "na_color": "#DEDEDE"}
-    ax = (
-        sdata.pl.render_shapes(f"cell_boundaries{suffix}", color=color, method="datashader", **extra)
-        .pl.show(
-            coordinate_systems=cs,
-            legend_loc=None if labels else "right margin",
-            title=title or (f"{slide}: {color}" if slide else color),
-            figsize=figsize,
-            dpi=dpi,
-            show=False,
-            return_ax=True))
-
-    if labels:
-        centres = obs.groupby(color, observed=True)[["CenterX_global_px", "CenterY_global_px"]].median()
-        for label, (x, y) in centres.iterrows():
-            ax.text(x, y, label, fontsize=fontsize, ha="center")
-
-    ax.invert_yaxis()
-    return ax
+__all__ = ["plot_core", "plot_composition", "plot_umap"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -115,8 +55,7 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
     Examples
     --------
     >>> plot_core(slides["MN2"], "C4R7", genes={"NPHS2": "magenta"})  # doctest: +SKIP
-    >>> plot_core(slides["MN2"], "C4R7", color="manual_annotation",
-    ...           palette=annotation_palette(classes))  # doctest: +SKIP
+    >>> plot_core(usc, "C4R7", slide="MN2", color=types.where(in_glom), legend_outside=True)  # doctest: +SKIP
     >>> plot_core(usc, "C4R7", slide="MN2", color=["CFH", "VCAM1"], image=False)  # doctest: +SKIP
     """
     kw = dict(genes=genes, palette=palette, title=title, core_key=core_key, slide=slide, fill_alpha=fill_alpha,
@@ -203,46 +142,6 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
         for text in leg.get_texts():
             text.set_fontsize(legend_fontsize)
     return ax
-
-
-def annotation_palette(classes, used=None):
-    """``{class: colour}`` in the colours of :func:`frzspatial.viewer.annotate_core`'s layers (scanpy's default_20).
-
-    used: an obs column; only the classes that occur in it are returned (for :func:`plot_core`'s `palette`).
-    """
-    from ._palette import DEFAULT_20
-
-    pal = {c: DEFAULT_20[i % len(DEFAULT_20)] for i, c in enumerate(classes)}
-    if used is not None:
-        present = set(used.dropna().astype(str))
-        pal = {c: v for c, v in pal.items() if c in present}
-    return pal
-
-
-def plot_annotations(sdata, classes, column="manual_annotation", title="", core_key="core_str"):
-    """Each annotated core, its cells filled by class in the colours of the napari layers.
-
-    To check which cells each drawn polygon took. Shows one figure per core with annotated cells.
-
-    Parameters
-    ----------
-    sdata
-        A single slide, after :func:`frzspatial.annotations_to_obs`.
-    classes
-        The annotation classes, in the order given to :func:`frzspatial.viewer.annotate_core`.
-    column
-        obs column of the annotations.
-    title
-        Prefix of each figure's title (e.g. the slide name).
-    """
-    import matplotlib.pyplot as plt
-
-    obs = sdata.tables["table"].obs
-    palette = annotation_palette(classes, used=obs[column])
-    for core in obs.loc[obs[column].notna(), core_key].unique():
-        plot_core(sdata, core, color=column, palette=palette, title=f"{title} {core}: {column}".strip(),
-                  core_key=core_key)
-        plt.show()
 
 
 def plot_composition(obs, color, sample="sample_id", group="group_mn", palette=None, figsize=(14, 7),
@@ -397,68 +296,3 @@ def plot_umap(table, color, palette=None, labels=True, legend=False, title="", s
     return ax
 
 
-def plot_niche_composition(comp, enrich, figsize=(16, 7)):
-    """Heatmaps of each niche's label shares and log2 enrichments (:func:`frzspatial.niches.niche_composition`).
-
-    Returns
-    -------
-    Figure
-    """
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    fig, axs = plt.subplots(1, 2, figsize=figsize)
-    sns.heatmap(comp, cmap="Blues", ax=axs[0], cbar_kws={"label": "share of the niche's cells"})
-    sns.heatmap(enrich, cmap="RdBu_r", center=0, vmin=-3, vmax=3, ax=axs[1], cbar_kws={"label": "log2 enrichment"})
-    axs[0].set_title("Niche composition")
-    axs[1].set_title("Cell-type enrichment per niche")
-    fig.tight_layout()
-    return fig
-
-
-def plot_share_by_group(obs, column, group="group_mn", case=("slide", "sample_id"), exclude=("Placenta",),
-                        ncols=5, figsize=(14, 8)):
-    """Each case's share of cells in each value of `column` (e.g. niches), by `group`: boxplots with one point per
-    case, one panel per value (every value counted for every case, 0 when absent).
-
-    Parameters
-    ----------
-    obs
-        Cell metadata with `column`, `group` and the `case` columns.
-    exclude
-        Groups left out (e.g. placenta orientation cores); cells without a group or value are left out too.
-
-    Returns
-    -------
-    Figure
-    """
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    d = obs[[*case, group, column]].dropna()
-    d = d[~d[group].astype(str).isin(exclude)]
-    values = [v for v in obs[column].cat.categories if v in set(d[column])] if hasattr(obs[column], "cat") \
-        else sorted(d[column].unique())
-    share = pd.crosstab([d[c].astype(str) for c in case] + [d[group].astype(str)], d[column], normalize="index")
-    share = share.reindex(columns=values, fill_value=0)
-    groups = sorted(share.index.get_level_values(-1).unique())
-    from ._palette import scanpy_palette
-
-    colours = scanpy_palette(groups)
-    nrows = int(np.ceil(len(values) / ncols))
-    fig, axs = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
-    rng = np.random.default_rng(0)
-    for ax, v in zip(axs.flat, values):
-        per = [share.loc[share.index.get_level_values(-1) == g, v].to_numpy() for g in groups]
-        ax.boxplot(per, showfliers=False, widths=0.6)
-        for i, (g, y) in enumerate(zip(groups, per), start=1):
-            ax.scatter(i + rng.uniform(-0.15, 0.15, len(y)), y, s=8, color=colours[g], zorder=3)
-        ax.set_xticks(range(1, len(groups) + 1), groups, rotation=45, ha="right", fontsize=8)
-        ax.set_title(str(v), fontsize=9)
-        ax.tick_params(axis="y", labelsize=7)
-    for ax in list(axs.flat)[len(values):]:
-        ax.axis("off")
-    for ax in axs[:, 0]:
-        ax.set_ylabel("share of the case's cells", fontsize=8)
-    fig.tight_layout()
-    return fig

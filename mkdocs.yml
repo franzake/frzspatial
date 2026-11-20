@@ -1,11 +1,10 @@
 site_name: frzspatial
-site_description: CosMx (AtoMx) exports to SpatialData, stitched TMA cores, plots and napari annotation
+site_description: CosMx (AtoMx) exports to SpatialData, TMA cores, QC, R tools and plots
 repo_url: https://github.com/franzake/frzspatial
 theme:
   name: material
 nav:
   - Home: index.md
-  - Annotation in napari: annotation.md
   - API reference: api.md
 plugins:
   - search

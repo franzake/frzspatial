@@ -1,10 +1,10 @@
 """R tools run from Python: InSituType (cell typing), FastReseg (resegmentation, inputs and results), scPearsonPCA
-(batch-corrected PCA), HieraType (cluster markers, marker heatmap), decontX (ambient RNA) and SpNeigh (structures and the rings around them).
+(batch-corrected PCA), HieraType (cluster markers, marker heatmap) and SpNeigh (structures and the rings around them).
 
 Each tool runs in its own ``Rscript`` process on files written here (counts as the CSC components of an R
 dgCMatrix, tables as CSV), and its results are read back, so it works the same from a Jupyter kernel, a Quarto render
 or reticulate. The R scripts are in ``frzspatial/R``; they need R with Matrix, data.table and the tool's package
-(InSituType, FastReseg, Seurat + scPearsonPCA, HieraType + ggplot2, celda, SpNeigh + sf).
+(InSituType, FastReseg, Seurat + scPearsonPCA, HieraType + ggplot2, SpNeigh + sf).
 """
 
 import os
@@ -21,7 +21,7 @@ import scipy.sparse as sp
 from ._utils import PX_UM, _log
 
 __all__ = ["rscript", "write_counts", "read_counts", "insitutype", "fastreseg_inputs", "load_fastreseg",
-           "apply_reseg", "pearson_pca", "cluster_markers", "marker_heatmap", "decontx", "structure_zones", "plot_boundary"]
+           "apply_reseg", "pearson_pca", "cluster_markers", "marker_heatmap", "structure_zones"]
 
 R_DIR = files("frzspatial").joinpath("R")
 
@@ -376,52 +376,6 @@ def cluster_markers(sdata, cluster_column="clusters", n_top=None, pseudocount=0.
     return out
 
 
-def decontx(sdata, cluster_column, batch_column="slide", max_iter=500, delta=(10, 10), estimate_delta=True, seed=12345,
-            table="table", layer=None):
-    """Ambient RNA removal by decontX (R package celda), with clusters given.
-
-    Each cell's counts are modelled as a mixture of its cluster's expression profile and a contamination profile
-    from the other clusters, estimated separately in each batch (``celda::decontX`` with ``z`` and ``batch``).
-
-    Parameters
-    ----------
-    sdata
-        Object whose table holds raw counts (probes ``Negative*`` / ``SystemControl*`` are left out), `cluster_column`
-        and `batch_column`.
-    cluster_column
-        obs column with the clusters (``z``).
-    batch_column
-        obs column with the batches, each with its own contamination profile (None: one batch).
-    max_iter, delta, estimate_delta, seed
-        decontX's ``maxIter``, ``delta`` (beta prior of the contamination), ``estimateDelta`` and ``seed``.
-    layer
-        Table layer with the counts (default ``X``).
-
-    Returns
-    -------
-    dict
-        ``counts`` (CSR, cells x genes: decontaminated counts, not integers), ``genes`` (their names) and
-        ``contamination`` (Series: each cell's estimated contaminated fraction, indexed like the table).
-    """
-    tb = sdata.tables[table]
-    X, probes, gene, _ = _split_probes(tb, layer)
-    cells = tb.obs_names.astype(str)
-    batch = tb.obs[batch_column].astype(str).to_numpy() if batch_column else np.repeat("all", len(cells))
-    tmp = Path(tempfile.mkdtemp(prefix="frz_dx_"))
-    try:
-        write_counts(tmp, "x", X[:, gene], cells, probes[gene])
-        pd.DataFrame({"cell": cells, "cluster": tb.obs[cluster_column].astype(str).to_numpy(), "batch": batch}).to_csv(
-            tmp / "cells.csv", index=False)
-        _log(f"decontX in R: {len(cells):,} cells, clusters from {cluster_column}")
-        rscript("decontx.R", tmp, max_iter, delta[0], delta[1], int(bool(estimate_delta)), seed)
-        counts, rows, genes = read_counts(tmp, "decont")
-        cont = pd.read_csv(tmp / "contamination.csv", dtype={"cell": str}).set_index("cell")["contamination"]
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-    order = pd.Index(rows).get_indexer(cells)
-    return {"counts": counts[order], "genes": list(genes), "contamination": cont.reindex(cells).set_axis(tb.obs_names)}
-
-
 def marker_heatmap(markers, blocks, width=22, height=9, out_png=None, show=True):
     """HieraType's marker heatmap (R, ggplot2) of fold changes, genes in named blocks, as main.Rmd §7.3.
 
@@ -534,52 +488,3 @@ def structure_zones(table, label, types, eps_um=35, min_cells=20, rings_um=(15, 
     return out, outlines
 
 
-def plot_boundary(table, label, outlines, core, palette=None, rings_um=(15, 30), core_key="core_id", point_size=1.2,
-                  width=8, height=8, out_png=None, show=True, px_um=PX_UM):
-    """One core's cells and structure outlines as SpNeigh's ``plotBoundary`` draws them (R, ggplot2): cells as points
-    coloured by `label`, each outline in black and its rings (`rings_um`) dashed.
-
-    Parameters
-    ----------
-    table
-        AnnData with obs `label`, `core_key` and ``obsm["spatial"]`` in global px.
-    outlines
-        ``{unit: shapely Polygon}`` in µm (e.g. from :func:`structure_zones`); those of `core` are drawn.
-    core
-        The core (``obs[core_key]``).
-    palette
-        ``{label value: colour}`` (default: SpNeigh's colours).
-    width, height
-        Size in inches.
-    out_png, show
-        Where to keep the image (default: a temporary file); draw it with matplotlib (``plt.show()`` follows).
-
-    Returns
-    -------
-    Path
-        The PNG.
-    """
-    tmp = Path(tempfile.mkdtemp(prefix="frz_pb_"))
-    out = Path(out_png) if out_png else tmp / "plot_boundary.png"
-    try:
-        sel = (table.obs[core_key].astype(str) == str(core)).to_numpy()
-        xy = np.asarray(table.obsm["spatial"], float)[sel] * px_um
-        lab = table.obs[label][sel]
-        levels = [str(c) for c in (lab.cat.remove_unused_categories().cat.categories if hasattr(lab, "cat") else sorted(lab.astype(str).unique()))]
-        pd.DataFrame({"cell": table.obs_names[sel].astype(str), "x": xy[:, 0], "y": xy[:, 1], "cluster": lab.astype(str).to_numpy()}) \
-            .to_csv(tmp / "cells.csv", index=False)
-        pd.DataFrame({"cluster": levels, "color": [(palette or {}).get(c, "") for c in levels]}).to_csv(tmp / "colors.csv", index=False)
-        pd.concat([pd.DataFrame({"region_id": u, "x": np.asarray(p.exterior.coords)[:, 0], "y": np.asarray(p.exterior.coords)[:, 1]})
-                   for u, p in outlines.items() if u.startswith(f"{core}_")] or [pd.DataFrame(columns=["region_id", "x", "y"])]) \
-            .to_csv(tmp / "outlines.csv", index=False)
-        rscript("plot_boundary.R", tmp, out.resolve(), point_size, width, height, f"{core}", *rings_um)
-        if show:
-            import matplotlib.pyplot as plt
-
-            fig = plt.figure(figsize=(width, height))
-            fig.add_axes([0, 0, 1, 1]).imshow(plt.imread(out))
-            fig.axes[0].axis("off")
-    finally:
-        if out_png:
-            shutil.rmtree(tmp, ignore_errors=True)
-    return out

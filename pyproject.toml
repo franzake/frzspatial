@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "frzspatial"
 version = "0.1.0"
-description = "CosMx (AtoMx) exports to SpatialData: fast loading, stitched cores, plots and napari annotation"
+description = "CosMx (AtoMx) exports to SpatialData: fast loading, TMA cores, QC, R tools and plots"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "franzake" }]
 requires-python = ">=3.12"  # spatialdata 0.8
-keywords = ["spatial transcriptomics", "CosMx", "AtoMx", "SpatialData", "napari", "TMA"]
+keywords = ["spatial transcriptomics", "CosMx", "AtoMx", "SpatialData", "TMA"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -31,17 +31,13 @@ dependencies = [
     "tifffile",
     "tqdm",
     "zarr",
-    # plots, napari (0.10 needs Qt >= 6.7, not PyQt5), H&E registration
+    # plots, clustering
     "spatialdata-plot",
     "matplotlib",
-    "napari-spatialdata",
-    "napari[pyqt5]>=0.6,<0.10; sys_platform != 'linux' or platform_machine != 'aarch64'",
-    "napari>=0.6,<0.10; sys_platform == 'linux' and platform_machine == 'aarch64'",  # PyQt5 has no ARM Linux wheels
     "scanpy",
     "igraph",  # scanpy's Leiden clustering (flavor="igraph")
     "adjustText",  # labels on UMAPs
     "squidpy>=1.8",  # spatial graph, neighbourhood enrichment (spatial_neighbors_radius)
-    "scikit-image",
     # Intel Macs: numba 0.62 / llvmlite 0.45 are the last with x86_64 macOS wheels (Python <= 3.13); newer ones fail
     # to build
     "numba<0.63; sys_platform == 'darwin' and platform_machine == 'x86_64'",
@@ -52,9 +48,6 @@ dependencies = [
 all = []  # everything is installed by default; kept so that "frzspatial[all]" still works
 test = ["pytest"]
 docs = ["mkdocs-material", "mkdocstrings[python]"]
-
-[project.scripts]
-frzspatial = "frzspatial.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/franzake/frzspatial"

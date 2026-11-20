@@ -65,8 +65,6 @@ from ._utils import _log, _reset_clock
 __all__ = [
     "build_sdata",
     "load_slides",
-    "save_table",
-    "slide_with_cells",
     "merge_slides",
     "drop_cells",
     "add_slide_view",
@@ -481,17 +479,6 @@ def load_slides(slides, input_dir, zarr_dir, cache_dir, *, rebuild=False, morpho
     return out
 
 
-def save_table(sdata, table="table"):
-    """Write `sdata`'s table back into the zarr it was read from (e.g. after adding obs columns).
-
-    spatialdata does not overwrite an element of its own backing zarr, so the table is deleted on disk and written
-    again; images, masks, polygons and transcripts on disk are left unchanged. Takes seconds per slide. Do not
-    interrupt it: between the two steps the zarr has no table.
-    """
-    sdata.delete_element_from_disk(table)
-    sdata.write_element(table)
-
-
 def merge_slides(slides, drop="flag_overall", table="table"):
     """Several slides in one object, without their flagged cells.
 
@@ -516,8 +503,8 @@ def merge_slides(slides, drop="flag_overall", table="table"):
 
     missing = [s for s, sdata in slides.items() if drop is not None and drop not in sdata.tables[table].obs]
     if missing:
-        raise KeyError(f"no obs column {drop!r} on {', '.join(missing)}: flag the cells first (qc_flags), or reopen "
-                       f"tables saved after flagging (save_table); drop=None keeps all cells")
+        raise KeyError(f"no obs column {drop!r} on {', '.join(missing)}: flag the cells first (qc_flags); "
+                       f"drop=None keeps all cells")
     kept = {}
     for s, sdata in tqdm(slides.items(), desc="filtering", unit="slide"):
         f = sdata.subset([name for _, name, _ in sdata.gen_elements()])
@@ -571,39 +558,4 @@ def drop_cells(sdata, drop="flag_overall", table="table"):
     by = kept.obs["slide"].value_counts(sort=False).to_dict() if "slide" in kept.obs else {"cells": kept.n_obs}
     _log(f"dropped {int((~keep).sum())} / {len(keep)} cells ({drop}); kept: {by}")
 
-
-def slide_with_cells(sdata, other, slide, table="table"):
-    """One slide's images, masks and transcripts with the cells of a merged object instead of its own.
-
-    For viewing later results (e.g. cell types or niches computed on merged, resegmented slides) on a single slide:
-    the merged object's polygons ``cell_boundaries-<slide>`` and table rows with ``obs["slide"] == slide``, with all
-    their obs columns, moved back to the slide's ``global`` coordinate system. The result works with
-    :func:`frzspatial.build_core` and :func:`frzspatial.viewer.annotate_core`.
-
-    Parameters
-    ----------
-    sdata
-        The single slide (from :func:`load_slides`).
-    other
-        The merged object: elements suffixed ``-<slide>``, table with a ``slide`` column and ``cell`` instance key.
-    slide
-        Slide name.
-    table
-        Table element of `other`.
-
-    Returns
-    -------
-    SpatialData
-        The masks still hold the original segmentation, so cells split later have no mask.
-    """
-    shp = other.shapes[f"cell_boundaries-{slide}"]
-    shp = ShapesModel.parse(gpd.GeoDataFrame(geometry=shp.geometry.to_numpy(), index=shp.index))  # identity to global
-    tb = other.tables[table]
-    t = tb[(tb.obs["slide"].astype(str) == slide).to_numpy()].copy()
-    t.obs["region"] = pd.Categorical(["cell_boundaries"] * t.n_obs)
-    t.uns.pop("spatialdata_attrs", None)
-    return SpatialData(
-        images=dict(sdata.images), labels=dict(sdata.labels), points=dict(sdata.points),
-        shapes={"cell_boundaries": shp},
-        tables={"table": TableModel.parse(t, region="cell_boundaries", region_key="region", instance_key="cell")})
 

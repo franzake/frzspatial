@@ -1,20 +1,21 @@
 # frzspatial
 
 CosMx (AtoMx) exports to [SpatialData](https://spatialdata.scverse.org), for TMA slides: fast loading and caching,
-cores stitched into one image, plots, and hand annotation of regions in napari that ends up as a cell-level column.
+TMA cores and case metadata, per-cell QC, R tools run from Python, and plots. The functions take a single slide or
+several slides merged into one object (with `slide=`), and change it in place.
 
 - **Read** an AtoMx flat-file export (counts, metadata, polygons, transcripts, per-FOV composites and masks) into one
   SpatialData object in AtoMx global pixels: in parallel, with transcripts cached as Parquet and images read lazily.
-- **Reopen** saved slides in seconds (`load_slides`), building only the missing ones, with a progress bar.
-- **Stitch** a TMA core, or a whole slide at reduced resolution, into one composite and one mask layer for napari
-  (`build_core`).
-- **Plot** a slide overview or one core with its outlines, transcripts or any obs column (`frzspatial.pl`).
-- **Annotate** regions (glomeruli, arteries, ...) or single cells in napari; polygons are saved as GeoJSON after
-  every change and each cell gets the class of the polygon around its centroid (`annotate_core`,
-  `annotations_to_obs`).
-- **QC**: regional signal-to-background ratio per cell (`compute_sbr`).
-- **Register** a whole-slide H&E onto the cells from tissue shape alone (`frzspatial.he`).
-- **Export** count matrices and metadata as plain files for a Seurat object in R (`write_seurat_inputs`).
+  `load_slides` reopens saved slides in seconds and builds only the missing ones; `merge_slides` puts them in one
+  object; `drop_cells` removes flagged cells.
+- **TMA cores**: `key_matrix`, `assign_cores`, `plot_core_grid`, and case metadata (`cases`, `add_clinical`).
+- **QC**: `fov_integrity`, `compute_sbr` (regional signal-to-background ratio), `qc_flags`, `plot_qc`,
+  `plot_qc_flags`.
+- **R tools** (`frzspatial.rtools`): InSituType, FastReseg inputs and results, scPearsonPCA, HieraType markers and
+  heatmap, SpNeigh structures. Reference profiles from an atlas (`frzspatial.reference`).
+- **DeSpotX** decontamination input and result (`despotx_input`, `apply_despotx`).
+- **Plots** (`frzspatial.pl`): one core with its outlines, transcripts or any obs column (`plot_core`), UMAPs
+  (`plot_umap`), cell-type composition (`plot_composition`).
 
 ## Installation
 
@@ -22,113 +23,53 @@ cores stitched into one image, plots, and hand annotation of regions in napari t
 pip install "git+https://github.com/franzake/frzspatial"
 ```
 
-This installs everything: plotting (spatialdata-plot), napari with PyQt5, and H&E registration (scikit-image).
-
 From R with reticulate:
 
 ```r
 reticulate::py_require("frzspatial @ git+https://github.com/franzake/frzspatial")
 ```
 
-It installs from wheels only (nothing to compile) on Linux, Windows and macOS 14+, with Python 3.12 to 3.14:
-
-- **Intel Macs**: numba and llvmlite are kept at 0.62 / 0.45, the last versions with Intel Mac wheels. Use Python
-  3.12 or 3.13 there: numba has no Intel Mac wheels for Python 3.14.
-- **napari** stays < 0.10, the last versions that work with PyQt5. On ARM Linux, where PyQt5 has no wheels, napari is
-  installed without a Qt backend (`pip install pyqt6` to open windows).
-
-Tested with Python 3.12, spatialdata 0.8.0, spatialdata-plot 0.4.3, napari 0.9.2 and napari-spatialdata 0.7.2.
+It installs from wheels only (nothing to compile) on Linux, Windows and macOS 14+, with Python 3.12 to 3.14. On Intel
+Macs, numba and llvmlite are kept at 0.62 / 0.45, the last versions with Intel Mac wheels: use Python 3.12 or 3.13
+there. The R tools need R with Matrix, data.table and the tool's package.
 
 ## Quick start
 
 ```python
 import frzspatial as fs
+import matplotlib.pyplot as plt
 import pandas as pd
+from frzspatial.pl import plot_core
 
 # Each slide's export is in data/<slide>_inputs/ (flatFiles/, CellComposite/, CellLabels/)
 slides = fs.load_slides(["MN2", "MN3"], input_dir="data", zarr_dir="data/zarr", cache_dir="data/cache")
-sdata = slides["MN2"]
+for s, sdata in slides.items():
+    sdata.tables["table"].obs["slide"] = s
+usc = fs.merge_slides(slides, drop=None)   # elements suffixed -<slide>, coordinate systems global-<slide>
 ```
 
 The first call builds and saves `data/zarr/MN2_flat.zarr` (minutes); later calls only open it (seconds).
 
-Cores come from the TMA key (rows and columns oriented like the slide), then QC and case metadata:
+Cores come from the TMA key (rows and columns oriented like the slide), then QC and case metadata, per slide:
 
 ```python
-key = fs.key_matrix(pd.read_csv("MN2_key.csv", sep=";"))  # key[r - 1, c - 1] = sample of core C<c>R<r>
-fs.assign_cores(sdata, key, "MN2", fov_overrides={93: "C4R1"})  # obs core_str, sample_id (in place)
-fs.plot_core_grid(by="core", sdata=sdata, slide="MN2")     # check the assignment (also by="row" / "column")
-fs.fov_integrity(sdata, "Hs_6k", slide="MN2")              # obs flag_fov_integrity, fov_signal_loss
-fs.compute_sbr(sdata)                                      # obs SBR, flag_sbr
-fs.add_clinical(sdata, "MN2", fs.cases("MN2", ["S-1", "S-2"], ["PLA2R", "Normal"]))  # obs slide, group, ...
+key = fs.key_matrix(pd.read_csv("MN2_key.csv", sep=";"))   # key[r - 1, c - 1] = sample of core C<c>R<r>
+fs.assign_cores(usc, key, slide="MN2")                     # obs core_str, sample_id (in place)
+fs.plot_core_grid(sdata=usc, slide="MN2", by="core"); plt.show()
+fs.fov_integrity(usc, "Hs_6k", slide="MN2")                # obs flag_fov_integrity, fov_signal_loss
+fs.compute_sbr(usc, slide="MN2")                           # obs SBR, flag_sbr
+fs.qc_flags(usc, slide="MN2")                              # obs flag_*, flag_overall
+fs.drop_cells(usc, "flag_overall")
 
-
-# Plots
-import matplotlib.pyplot as plt
-from frzspatial.pl import plot_core, plot_slide_overview
-
-plot_slide_overview(sdata, "core_str"); plt.show()
-plot_core(sdata, "C4R7", genes={"NPHS2": "magenta", "LRP2": "orange"}); plt.show()
-
-# napari: one core at full resolution, or the whole slide (core=None) at 1/8
-from frzspatial.viewer import open_napari
-open_napari(fs.build_core(sdata, "MN2", "C4R7"))
+plot_core(usc, "C4R7", slide="MN2", genes={"NPHS2": "magenta", "LRP2": "orange"}); plt.show()
+plot_core(usc, "C4R7", slide="MN2", color="sample_id", image=False, legend_outside=True); plt.show()
 ```
 
-### Annotating regions
-
-```python
-from frzspatial.viewer import annotate_core
-from frzspatial.pl import annotation_palette, plot_core
-
-CLASSES = ["Glomerulus", "Sclerotic_glomerulus", "Tubulointerstitium", "Artery", "Inflammation", "Exclude"]
-annotate_core(sdata, "MN2", "C4R7", CLASSES)     # opens napari; returns when the window is closed
-
-obs = sdata.tables["table"].obs
-obs["manual_annotation"].value_counts()
-plot_core(sdata, "C4R7", color="manual_annotation", palette=annotation_palette(CLASSES, obs["manual_annotation"]))
-
-fs.save_table(sdata)                             # store the new column in MN2_flat.zarr
-```
-
-In napari, click the `annot: <class>` layer of a class, then draw:
-
-| To do                  | How                                                                 |
-|------------------------|---------------------------------------------------------------------|
-| draw a region          | **P** (polygon), click around it, double-click to close             |
-| mark single cells      | zoom in, **R** (rectangle), drag a small box over the cell's centre |
-| move or delete a shape | **5** (select), click it, then drag or press Backspace              |
-| colour the outlines    | select `cell_boundaries`, pick a column in the *View* panel         |
-
-Each change is saved to `results/annotations/<slide>_<core>.geojson`. Close the window with its own close button.
-When Python runs inside R or Jupyter, **don't quit with Cmd-Q**: it quits the host's Qt loop and can hang it, and
-force-quitting the window kills the host. Rerunning `annotate_core` on the same core reopens its shapes for
-editing; `fs.annotations_to_obs(sdata, CLASSES)` rebuilds the column from the files at any time.
-
-### Merged slides
-
-After `spatialdata.concatenate` with each slide's elements suffixed `-<slide>` and in coordinate system
-`global-<slide>`, the same functions take the merged object and a slide name:
-
-```python
-open_napari(fs.build_core(merged, "MN2", "C4R7", colors={"cell_type": {"Podocyte": "#e377c2", ...}}))
-fs.annotations_to_obs(merged, CLASSES)  # every slide's files, matched on obs["slide"] and obs["core_str"]
-```
-
-## Command line
-
-```bash
-frzspatial build data/MN2_inputs MN2 -o MN2_flat.zarr --cache-dir cache
-frzspatial info MN2_flat.zarr
-frzspatial view MN2_flat.zarr --slide MN2 --core C4R7
-frzspatial view MN2_flat.zarr --slide MN2 --core C4R7 --annotate Glomerulus Artery
-```
-
-`frzspatial <command> --help` lists every option.
+`plot_core` also takes a Series as `color` (e.g. a column masked with `.where(...)`; the other cells are grey).
 
 ## Help
 
-Every function has a docstring: `help(fs.build_core)`, or `fs.build_core?` in IPython. The module docstrings
+Every function has a docstring: `help(fs.assign_cores)`, or `fs.assign_cores?` in IPython. The module docstrings
 (`help(frzspatial.io)`, `help(frzspatial.core)`) describe the expected export layout and coordinate systems. The
 full reference is at <https://franzake.github.io/frzspatial>, or build it locally with
 `pip install "frzspatial[docs]" && mkdocs serve`.
@@ -138,7 +79,6 @@ full reference is at <https://franzake.github.io/frzspatial>, or build it locall
 - Positions are AtoMx global px (0.120280945 µm/px, `fs.PX_UM`); each FOV is placed with
   `x = dx + col`, `y = cy - row`, so FOVs stitch without resampling.
 - Cells are named by AtoMx's `cell` (`c_<slide_ID>_<fov>_<cell_ID>`).
-- `fs.set_verbose(False)` silences the progress messages.
 
 ## Development
 
