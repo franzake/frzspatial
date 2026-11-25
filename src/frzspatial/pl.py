@@ -540,7 +540,6 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     """
     import matplotlib.pyplot as plt
     import scipy.sparse as sp
-    from matplotlib.transforms import blended_transform_factory
     from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
     from .de import _PROBE_PREFIXES, _cell_mask
@@ -662,9 +661,12 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
             ax.set_xticks([])
         for e in pp["edges"]:
             ax.axvline(e, c="k", lw=2, zorder=4)
+        # trees and title in figure fractions, like the heatmap: a figure drawn larger than made (e.g. a Quarto
+        # chunk taller than the logged size) gains space instead of sliding titles into trees and panels
+        npat = max(len(pats), 1)
         for start, nk, tree in pp["trees"]:
-            dax = ax.inset_axes([start - 0.5, 1.0, nk, tree_h / axes_h],
-                                transform=blended_transform_factory(ax.transData, ax.transAxes))
+            dax = fig.add_axes([(x0 + heat_w * start / npat) / W, (y0 + axes_h) / H, heat_w * nk / npat / W,
+                                tree_h * 0.92 / H])
             dendrogram(tree, ax=dax, no_labels=True, color_threshold=0, above_threshold_color="0.25")
             dax.set_xlim(0, 10 * nk)
             dax.set_axis_off()
@@ -674,8 +676,9 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
             ax.grid(False)
         ax.set_xlim(-0.5, len(pats) - 0.5)
         ax.set_ylim(len(pp["labels"]) - 0.5, -1.8)
-        ax.set_title(f"{pp['t']}: {len(pats)} patients (>= {min_cells} cells), top {len(pp['labels'])} genes",
-                     fontsize=title_fs, pad=tree_h * 72 + 6)
+        fig.text((x0 + heat_w / 2) / W, (y0 + axes_h + tree_h + 0.12) / H,
+                 f"{pp['t']}: {len(pats)} patients (>= {min_cells} cells), top {len(pp['labels'])} genes",
+                 fontsize=title_fs, ha="center", va="bottom")
 
     # 4. Colour bar, legend, title
     cax = fig.add_axes([(ncol * cell_w + 0.3) / W, 0.35, 0.22 / W, 0.3])
