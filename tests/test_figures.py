@@ -99,5 +99,5 @@ def test_cluster_enrichment_and_labels():
     e = cluster_enrichment(clusters, sets, bg, min_size=5)
     top = e[(e["cluster"] == 1)].iloc[0]
     assert top["term"] == "planted" and top["overlap"] == 8 and top["fdr"] < 1e-6
-    labs = cluster_labels(e)
+    labs = cluster_labels(e, clusters=clusters)
     assert labs[1] == "planted" and labs[2] == "n.s."

@@ -218,17 +218,19 @@ def cluster_enrichment(clusters, sets, background, min_size=5, max_size=500):
 
 
 def cluster_labels(enrichment, n_terms=2, fdr=0.05, libraries=None, max_chars=60, clean=True, nominal_p=0.01,
-                   min_overlap=2):
+                   min_overlap=2, clusters=None):
     """``{cluster: text}`` naming each cluster by its `n_terms` most significant gene sets (FDR < `fdr`), for
     ``plot_smide_heatmap(cluster_labels=...)``. A cluster without one is named by its best set if its nominal p is
     below `nominal_p` (shown as "term (p = ...)", suggestive only), else "n.s."; sets need `min_overlap` cluster
-    genes. `clean` drops GO ids from the names."""
+    genes. `clean` drops GO ids from the names. `clusters` (e.g. ``smide_heatmap_clusters``'s Series): label every
+    cluster, also those overlapping no gene set ("n.s.")."""
     import re
 
     e = enrichment if libraries is None else enrichment[enrichment["library"].isin(libraries)]
     e = e[e["overlap"] >= min_overlap]
     out = {}
-    for c in sorted(enrichment["cluster"].unique()):
+    ids = sorted(set(enrichment["cluster"]) | (set(pd.Series(clusters).unique()) if clusters is not None else set()))
+    for c in ids:
         d = e[(e["cluster"] == c) & (e["fdr"] < fdr)].sort_values(["fdr", "pval"])
         if d.empty and nominal_p:
             best = e[(e["cluster"] == c) & (e["pval"] < nominal_p)].sort_values("pval").head(1)
