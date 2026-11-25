@@ -363,11 +363,29 @@ def _smide_order(res, celltypes, contrasts):
     return types, cons
 
 
-def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip=1.5, fdr=0.05, figsize=None, title=None):
+def _smide_cmap():
+    """The smide heatmaps' blue - white - red palette (deep ends)."""
+    import seaborn as sns
+
+    return sns.diverging_palette(250, 12, s=90, l=42, sep=8, as_cmap=True)
+
+
+def _sat_colorbar(fig, im, lim, label, cax=None, ax=None):
+    """Colour bar with saturated ends labelled <= -lim and >= lim."""
+    cb = fig.colorbar(im, cax=cax, ax=ax, ticks=[-lim, -lim / 2, 0, lim / 2, lim],
+                      **({} if cax is not None else dict(fraction=0.03, pad=0.02)))
+    cb.ax.set_yticklabels([f"<= -{lim:g}", f"{-lim / 2:g}", "0", f"{lim / 2:g}", f">= {lim:g}"], fontsize=12)
+    cb.set_label(label, fontsize=14)
+    return cb
+
+
+def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto", fdr=0.05, figsize=None, title=None):
     """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
 
-    Colour: adjusted log2 fold change (red higher in the first group named); dot: FDR < `fdr`; grey: gene not tested
-    in that cell type. Genes are ordered by hierarchical clustering of their fold-change profiles.
+    Colour: adjusted log2 fold change (red higher in the first group named), on the same blue - white - red scale as
+    ``plot_smide_patients``, saturated beyond `clip`; star: FDR < `fdr`; grey: gene not tested in that cell type.
+    Gene labels give the log2FC in the gene's most significant family. Genes are ordered by hierarchical clustering
+    of their fold-change profiles.
 
     Parameters
     ----------
@@ -378,7 +396,8 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip=1.5, f
     n_top
         Significant genes with the smallest FDR taken from each family.
     clip
-        Colour limit (|log2FC|).
+        Colour limit (|log2FC|): a number, or ``"auto"`` (the 90th percentile of |log2FC| over the cells shown, so a
+        few large changes don't wash out the others).
 
     Returns
     -------
@@ -390,35 +409,38 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip=1.5, f
     types, cons = _smide_order(res, celltypes, contrasts)
     fam = res.assign(family=res["celltype"].astype(str) + " | " + res["contrast"].astype(str))
     order = [f"{t} | {c}" for t in types for c in cons]
-    top = fam[(fam["FDR_BH"] < fdr) & fam["family"].isin(order)].sort_values("FDR_BH") \
-        .groupby("family", sort=False).head(n_top)["gene"].unique()
+    sig = fam[(fam["FDR_BH"] < fdr) & fam["family"].isin(order)].sort_values("FDR_BH")
+    top = sig.groupby("family", sort=False).head(n_top)["gene"].unique()
     if not len(top):
         raise ValueError(f"no gene with FDR < {fdr}")
     l2fc = fam.pivot_table(index="gene", columns="family", values="log2FC").reindex(index=top, columns=order)
     q = fam.pivot_table(index="gene", columns="family", values="FDR_BH").reindex(index=top, columns=order)
+    if clip == "auto":
+        clip = max(0.25, float(np.ceil(np.nanpercentile(np.abs(l2fc.to_numpy()), 90) * 4) / 4))
     if len(l2fc) > 2:
         rows = l2fc.index[leaves_list(linkage(l2fc.fillna(0).clip(-clip, clip).to_numpy(), "average",
                                               metric="correlation"))]
         l2fc, q = l2fc.loc[rows], q.loc[rows]
-    cmap = plt.get_cmap("RdBu_r").copy()
+    best = sig.drop_duplicates("gene").set_index("gene")["log2FC"]   # log2FC in each gene's most significant family
+    cmap = _smide_cmap().copy()
     cmap.set_bad("0.88")
-    fig, ax = plt.subplots(figsize=figsize or (4 + 0.85 * len(order), 3 + 0.32 * len(l2fc)))
-    im = ax.imshow(l2fc.to_numpy(), cmap=cmap, vmin=-clip, vmax=clip, aspect="auto", interpolation="none")
+    fig, ax = plt.subplots(figsize=figsize or (4.5 + 0.85 * len(order), 3 + 0.32 * len(l2fc)))
+    im = ax.imshow(l2fc.clip(-clip, clip).to_numpy(), cmap=cmap, vmin=-clip, vmax=clip, aspect="auto",
+                   interpolation="none")
     yy, xx = np.nonzero((q < fdr).to_numpy())
-    ax.scatter(xx, yy, s=10, c="k", linewidths=0)
+    ax.scatter(xx, yy, s=55, c="k", marker="*", linewidths=0)
     ax.set_xticks(range(len(order)), [o.split(" | ")[1].replace("_vs_", " vs ") for o in order], rotation=90,
                   fontsize=11)
-    ax.set_yticks(range(len(l2fc)), l2fc.index, fontsize=9)
+    ax.set_yticks(range(len(l2fc)), [f"{g} ({best[g]:+.1f})" for g in l2fc.index], fontsize=9)
     for k, t in enumerate(types):
         ax.text(len(cons) * k + (len(cons) - 1) / 2, -1.0, t, ha="center", va="bottom", fontsize=14, weight="bold")
         if k:
             ax.axvline(len(cons) * k - 0.5, c="k", lw=1.5)
     ax.set_ylim(len(l2fc) - 0.5, -1.6)
     ax.grid(False)
-    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.set_label("adjusted log2 fold change", fontsize=12)
-    ax.set_title(title or f"smiDE: top {n_top} genes per family (dot: FDR < {fdr}; grey: not tested)", fontsize=15,
-                 pad=34)
+    _sat_colorbar(fig, im, clip, "adjusted log2 fold change", ax=ax)
+    ax.set_title(title or f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
+                 "label: log2FC in its most significant family)", fontsize=14, pad=34)
     fig.tight_layout()
     return fig
 
@@ -464,7 +486,6 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     """
     import matplotlib.pyplot as plt
     import scipy.sparse as sp
-    import seaborn as sns
     from matplotlib.transforms import blended_transform_factory
     from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
 
@@ -489,7 +510,7 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     gidx = pd.Index(names)
     keep_cells = _cell_mask(obs, cells) & obs[group_col].astype(str).isin(groups).to_numpy() \
         & obs[patient_col].notna().to_numpy()
-    cmap = sns.diverging_palette(250, 12, s=90, l=42, sep=8, as_cmap=True)
+    cmap = _smide_cmap()
     fig_h = 8 + 0.6 * n_genes
     ncol = 2 if len(types) > 1 else 1
     nrow = int(np.ceil(len(types) / ncol))
@@ -550,9 +571,7 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     H = fig.get_size_inches()[1]
     fig.subplots_adjust(left=0.07, right=0.92, bottom=1.6 / H, top=1 - 5.0 / H, hspace=0.3, wspace=0.22)
     cax = fig.add_axes([0.94, 0.35, 0.01, 0.3])
-    cb = fig.colorbar(im, cax=cax, ticks=[-z_lim, -z_lim / 2, 0, z_lim / 2, z_lim])
-    cb.ax.set_yticklabels([f"<= -{z_lim}", f"{-z_lim / 2:g}", "0", f"{z_lim / 2:g}", f">= {z_lim}"], fontsize=14)
-    cb.set_label("robust z-score across patients\n(log CPM, median / MAD)", fontsize=16)
+    _sat_colorbar(fig, im, z_lim, "robust z-score across patients\n(log CPM, median / MAD)", cax=cax)
     shown = [g for g in groups if g in plotted]   # groups with at least one patient column
     handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in shown]
     fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=18, frameon=False,
