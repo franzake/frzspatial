@@ -306,7 +306,7 @@ def plot_umap(table, color, palette=None, labels=True, legend=False, title="", s
 
 
 def plot_smide_volcano(res, celltype, contrast, fdr=0.05, y="FDR_BH", n_labels=12, title=None, figsize=(9, 8),
-                       fontsize=12, ax=None):
+                       fontsize=12, repel=True, ax=None):
     """Volcano plot of one ``frzspatial.de.smide`` family: log2 fold change against -log10 `y`.
 
     Parameters
@@ -321,6 +321,11 @@ def plot_smide_volcano(res, celltype, contrast, fdr=0.05, y="FDR_BH", n_labels=1
         ``"FDR_BH"`` (default) or ``"p_for_inference"`` (nominal p) on the y axis.
     n_labels
         The genes with the smallest FDR that get a name.
+    fontsize
+        Size of all text: tick labels, axis labels and gene names; the title is a little larger, the legend a little
+        smaller.
+    repel
+        Spread the gene names apart (adjustText), each joined to its point by a thin line.
 
     Returns
     -------
@@ -337,23 +342,37 @@ def plot_smide_volcano(res, celltype, contrast, fdr=0.05, y="FDR_BH", n_labels=1
     up, down = sig & (d["beta"] > 0), sig & (d["beta"] < 0)
     if ax is None:
         _, ax = plt.subplots(figsize=figsize)
-    ax.scatter(d.loc[~sig, "log2FC"], d.loc[~sig, "_y"], s=8, c="0.75", lw=0, label=f"FDR >= {fdr}")
+    fs = fontsize
+    ax.scatter(d.loc[~sig, "log2FC"], d.loc[~sig, "_y"], s=fs * 0.7, c="0.78", lw=0, label=f"FDR >= {fdr}")
     case, ref = d["case"].iloc[0], d["reference"].iloc[0]
     hi = f"higher in {case}" if isinstance(case, str) else "positive"
     lo = f"higher in {ref}" if isinstance(ref, str) else "negative"
-    ax.scatter(d.loc[up, "log2FC"], d.loc[up, "_y"], s=14, c="#c0392b", lw=0, label=f"{hi} ({int(up.sum())})")
-    ax.scatter(d.loc[down, "log2FC"], d.loc[down, "_y"], s=14, c="#2a6fbb", lw=0, label=f"{lo} ({int(down.sum())})")
+    ax.scatter(d.loc[up, "log2FC"], d.loc[up, "_y"], s=fs * 1.5, c="#c0392b", lw=0, label=f"{hi} ({int(up.sum())})")
+    ax.scatter(d.loc[down, "log2FC"], d.loc[down, "_y"], s=fs * 1.5, c="#2a6fbb", lw=0,
+               label=f"{lo} ({int(down.sum())})")
     ax.axvline(0, c="0.6", lw=0.8)
     if y == "FDR_BH":
         ax.axhline(-np.log10(fdr), c="0.6", lw=0.8, ls="--")
-    for _, r in d[sig].nsmallest(n_labels, "FDR_BH").iterrows():
-        ax.annotate(r["gene"], (r["log2FC"], r["_y"]), xytext=(3, 3), textcoords="offset points",
-                    fontsize=fontsize - 2, path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+    texts = [ax.text(r["log2FC"], r["_y"], r["gene"], fontsize=fs * 0.9,
+                     path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+             for _, r in d[sig].nsmallest(n_labels, "FDR_BH").iterrows()]
     ax.set_xlabel(f"adjusted log2 fold change ({case} vs {ref})" if isinstance(case, str) else "coefficient / log(2)",
-                  fontsize=fontsize)
-    ax.set_ylabel("-log10 FDR (BH)" if y == "FDR_BH" else "-log10 p", fontsize=fontsize)
-    ax.set_title(title or f"smiDE: {celltype}, {contrast} ({len(d)} valid genes)", fontsize=fontsize + 2)
-    ax.legend(frameon=False, fontsize=fontsize - 2)
+                  fontsize=fs)
+    ax.set_ylabel("-log10 FDR (BH)" if y == "FDR_BH" else "-log10 p", fontsize=fs)
+    ax.tick_params(labelsize=fs * 0.9)
+    nice = contrast.replace("_vs_", " vs ")
+    ax.set_title(title or f"{celltype}: {nice} ({len(d):,} genes)", fontsize=fs * 1.15)
+    ax.margins(x=0.08, y=0.1)
+    leg = ax.legend(loc="best", fontsize=fs * 0.8, frameon=True, framealpha=0.85, edgecolor="none",
+                    markerscale=1.5, handletextpad=0.3, borderpad=0.4)
+    leg.set_zorder(5)
+    if repel and texts:
+        try:
+            from adjustText import adjust_text
+
+            adjust_text(texts, ax=ax, expand=(1.15, 1.3), arrowprops=dict(arrowstyle="-", color="0.4", lw=0.6))
+        except ImportError:
+            pass
     return ax
 
 
