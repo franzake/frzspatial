@@ -11,7 +11,8 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 
 from .core import coordinate_system, core_box
 
-__all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano"]
+__all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano", "plot_smide_heatmap",
+           "plot_smide_patients"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -354,3 +355,206 @@ def plot_smide_volcano(res, celltype, contrast, fdr=0.05, y="FDR_BH", n_labels=1
     ax.set_title(title or f"smiDE: {celltype}, {contrast} ({len(d)} valid genes)", fontsize=fontsize + 2)
     ax.legend(frameon=False, fontsize=fontsize - 2)
     return ax
+
+
+def _smide_order(res, celltypes, contrasts):
+    types = list(celltypes) if celltypes is not None else list(dict.fromkeys(res["celltype"]))
+    cons = list(contrasts) if contrasts is not None else list(dict.fromkeys(res["contrast"]))
+    return types, cons
+
+
+def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip=1.5, fdr=0.05, figsize=None, title=None):
+    """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
+
+    Colour: adjusted log2 fold change (red higher in the first group named); dot: FDR < `fdr`; grey: gene not tested
+    in that cell type. Genes are ordered by hierarchical clustering of their fold-change profiles.
+
+    Parameters
+    ----------
+    res
+        The DataFrame returned by ``smide``.
+    celltypes, contrasts
+        Order of the column blocks and of the columns within them (default: as in `res`).
+    n_top
+        Significant genes with the smallest FDR taken from each family.
+    clip
+        Colour limit (|log2FC|).
+
+    Returns
+    -------
+    Figure
+    """
+    import matplotlib.pyplot as plt
+    from scipy.cluster.hierarchy import leaves_list, linkage
+
+    types, cons = _smide_order(res, celltypes, contrasts)
+    fam = res.assign(family=res["celltype"].astype(str) + " | " + res["contrast"].astype(str))
+    order = [f"{t} | {c}" for t in types for c in cons]
+    top = fam[(fam["FDR_BH"] < fdr) & fam["family"].isin(order)].sort_values("FDR_BH") \
+        .groupby("family", sort=False).head(n_top)["gene"].unique()
+    if not len(top):
+        raise ValueError(f"no gene with FDR < {fdr}")
+    l2fc = fam.pivot_table(index="gene", columns="family", values="log2FC").reindex(index=top, columns=order)
+    q = fam.pivot_table(index="gene", columns="family", values="FDR_BH").reindex(index=top, columns=order)
+    if len(l2fc) > 2:
+        rows = l2fc.index[leaves_list(linkage(l2fc.fillna(0).clip(-clip, clip).to_numpy(), "average",
+                                              metric="correlation"))]
+        l2fc, q = l2fc.loc[rows], q.loc[rows]
+    cmap = plt.get_cmap("RdBu_r").copy()
+    cmap.set_bad("0.88")
+    fig, ax = plt.subplots(figsize=figsize or (4 + 0.85 * len(order), 3 + 0.32 * len(l2fc)))
+    im = ax.imshow(l2fc.to_numpy(), cmap=cmap, vmin=-clip, vmax=clip, aspect="auto", interpolation="none")
+    yy, xx = np.nonzero((q < fdr).to_numpy())
+    ax.scatter(xx, yy, s=10, c="k", linewidths=0)
+    ax.set_xticks(range(len(order)), [o.split(" | ")[1].replace("_vs_", " vs ") for o in order], rotation=90,
+                  fontsize=11)
+    ax.set_yticks(range(len(l2fc)), l2fc.index, fontsize=9)
+    for k, t in enumerate(types):
+        ax.text(len(cons) * k + (len(cons) - 1) / 2, -1.0, t, ha="center", va="bottom", fontsize=14, weight="bold")
+        if k:
+            ax.axvline(len(cons) * k - 0.5, c="k", lw=1.5)
+    ax.set_ylim(len(l2fc) - 0.5, -1.6)
+    ax.grid(False)
+    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
+    cb.set_label("adjusted log2 fold change", fontsize=12)
+    ax.set_title(title or f"smiDE: top {n_top} genes per family (dot: FDR < {fdr}; grey: not tested)", fontsize=15,
+                 pad=34)
+    fig.tight_layout()
+    return fig
+
+
+def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_col="sample_id", celltypes=None,
+                        cells=None, n_genes=24, min_cells=10, layer="counts", groups=None, palette=None, z_lim=2,
+                        cluster=True, column_labels=None, table="table", title=None):
+    """The top genes of one ``smide`` contrast at the level of the patients: one heatmap per cell type.
+
+    Each column is one patient's pseudobulk of the cell type (sum of raw counts over its cells, log CPM), each row a
+    gene (the `n_genes` smallest p of `contrast` in that type, ordered by fold change; label: log2FC and * when
+    FDR < 0.05). Values are robust z-scores per gene across patients (median / MAD), so a few extreme patients don't
+    flatten the others' contrast. Patients are grouped by `group_col` and, with `cluster`, ordered by hierarchical
+    clustering within each group (average linkage, Euclidean), with each group's tree drawn above it. An effect
+    carried by most patients of a group reads as a block.
+
+    Parameters
+    ----------
+    sdata
+        SpatialData (its table `table`) or AnnData with raw counts (`layer`, or ``X`` if None).
+    res
+        The DataFrame returned by ``smide``.
+    celltype_col, contrast, group_col, patient_col
+        obs columns of the cell types, the contrast name in `res`, the group variable and the patient.
+    celltypes
+        Cell types, one panel each (default: those of `res` for `contrast`).
+    cells
+        The cells to pool, as ``smide(cells=...)``: e.g. ``"ng_glom_id"`` (the cells of a glomerulus).
+    n_genes, min_cells
+        Genes per panel; patients with fewer cells of the type are left out.
+    groups, palette
+        Group order (default: the contrast's reference, its case, then the other groups) and ``{group: colour}``.
+    z_lim
+        Colour limit of the robust z-scores.
+    column_labels
+        obs column whose value labels each patient's column (e.g. ``"slide"``). None (default): no labels, since
+        patient ids can be identifiers.
+
+    Returns
+    -------
+    Figure
+        Its height grows with `n_genes` (8 + 0.6 x n_genes inches; in Quarto set the chunk's fig-height to match).
+    """
+    import matplotlib.pyplot as plt
+    import scipy.sparse as sp
+    import seaborn as sns
+    from matplotlib.transforms import blended_transform_factory
+    from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
+
+    from .de import _PROBE_PREFIXES, _cell_mask
+
+    tb = sdata.tables[table] if hasattr(sdata, "tables") else sdata
+    obs = tb.obs
+    r_all = res[res["contrast"] == contrast]
+    if r_all.empty:
+        raise ValueError(f"no contrast {contrast!r} in res")
+    types = list(celltypes) if celltypes is not None else list(dict.fromkeys(r_all["celltype"]))
+    case, ref = r_all["case"].iloc[0], r_all["reference"].iloc[0]
+    present = [g for g in pd.unique(obs[group_col].dropna().astype(str))]
+    if groups is None:
+        first = [g for g in (ref, case) if isinstance(g, str) and g in present]
+        groups = first + sorted(g for g in present if g not in first)
+    from ._palette import scanpy_palette
+    palette = palette or scanpy_palette(groups)
+    X = sp.csr_matrix(tb.layers[layer] if layer else tb.X)
+    names = tb.var_names.astype(str)
+    total = np.asarray(X[:, np.flatnonzero(~names.str.startswith(_PROBE_PREFIXES))].sum(axis=1)).ravel()
+    gidx = pd.Index(names)
+    keep_cells = _cell_mask(obs, cells) & obs[group_col].astype(str).isin(groups).to_numpy() \
+        & obs[patient_col].notna().to_numpy()
+    cmap = sns.diverging_palette(250, 12, s=90, l=42, sep=8, as_cmap=True)
+    fig_h = 8 + 0.6 * n_genes
+    ncol = 2 if len(types) > 1 else 1
+    nrow = int(np.ceil(len(types) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(15 * ncol, fig_h * nrow / 2), squeeze=False)
+    label_size = min(13, 520 / n_genes)
+    im = None
+    for ax, t in zip(axes.ravel(), types):
+        r = r_all[r_all["celltype"] == t]
+        top = r.nsmallest(n_genes, "p_for_inference").sort_values("log2FC", ascending=False)
+        m = keep_cells & (obs[celltype_col].astype(str) == t).to_numpy()
+        o = obs[m]
+        n = o.groupby(patient_col, observed=True).size()
+        cols_keep = [group_col] + ([column_labels] if column_labels and column_labels != group_col else [])
+        pats = (o.drop_duplicates(patient_col).set_index(patient_col).loc[n.index[n >= min_cells], cols_keep]
+                .assign(g=lambda d: pd.Categorical(d[group_col].astype(str), groups)).sort_values("g"))
+        code = pd.Categorical(o[patient_col].astype(str), categories=pats.index.astype(str)).codes
+        ok = code >= 0
+        P = sp.csr_matrix((np.ones(ok.sum()), (code[ok], np.flatnonzero(ok))), shape=(len(pats), ok.size))
+        idx = np.flatnonzero(m)
+        pb = np.asarray((P @ X[idx][:, gidx.get_indexer(top["gene"])]).todense()) / (P @ total[idx])[:, None] * 1e6
+        z = np.log1p(pb)
+        med = np.median(z, axis=0)
+        mad = 1.4826 * np.median(np.abs(z - med), axis=0)
+        z = ((z - med) / np.where(mad > 1e-9, mad, z.std(axis=0).clip(min=1e-9))).T
+        order, edges, trees = [], [], []
+        for grp in groups:
+            cols = np.flatnonzero(pats["g"].astype(str).to_numpy() == grp)
+            if cluster and len(cols) > 2:
+                tree = linkage(np.clip(z[:, cols], -z_lim, z_lim).T, "average", metric="euclidean")
+                cols = cols[leaves_list(tree)]
+                trees.append((len(order), len(cols), tree))
+            order += list(cols)
+            edges.append(len(order) - 0.5)
+        z, pats = z[:, order], pats.iloc[order]
+        im = ax.imshow(np.clip(z, -z_lim, z_lim), cmap=cmap, vmin=-z_lim, vmax=z_lim, aspect="auto",
+                       interpolation="none")
+        ax.scatter(range(len(pats)), [-1.1] * len(pats), c=[palette.get(g, "0.6") for g in pats["g"].astype(str)],
+                   marker="s", s=180, clip_on=False)
+        ax.set_yticks(range(len(top)), [f"{gname} ({l:+.1f}){' *' if q < 0.05 else ''}" for gname, l, q
+                                        in zip(top["gene"], top["log2FC"], top["FDR_BH"])], fontsize=label_size)
+        if column_labels:
+            ax.set_xticks(range(len(pats)), pats[column_labels].astype(str), rotation=90, fontsize=9)
+        else:
+            ax.set_xticks([])
+        for e in edges[:-1]:
+            ax.axvline(e, c="k", lw=2)
+        for start, k, tree in trees:
+            dax = ax.inset_axes([start - 0.5, 1.0, k, 0.16], transform=blended_transform_factory(ax.transData, ax.transAxes))
+            dendrogram(tree, ax=dax, no_labels=True, color_threshold=0, above_threshold_color="0.25")
+            dax.set_xlim(0, 10 * k)
+            dax.set_axis_off()
+        ax.set_ylim(len(top) - 0.5, -1.8)
+        ax.grid(False)
+        ax.set_title(f"{t}: {len(pats)} patients (>= {min_cells} cells), top {len(top)} genes", fontsize=18, pad=95)
+    for ax in axes.ravel()[len(types):]:
+        ax.set_axis_off()
+    H = fig.get_size_inches()[1]
+    fig.subplots_adjust(left=0.07, right=0.92, bottom=1.6 / H, top=1 - 5.0 / H, hspace=0.3, wspace=0.22)
+    cax = fig.add_axes([0.94, 0.35, 0.01, 0.3])
+    cb = fig.colorbar(im, cax=cax, ticks=[-z_lim, -z_lim / 2, 0, z_lim / 2, z_lim])
+    cb.ax.set_yticklabels([f"<= -{z_lim}", f"{-z_lim / 2:g}", "0", f"{z_lim / 2:g}", f">= {z_lim}"], fontsize=14)
+    cb.set_label("robust z-score across patients\n(log CPM, median / MAD)", fontsize=16)
+    handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in groups]
+    fig.legend(handles=handles, loc="upper center", ncol=len(groups), fontsize=18, frameon=False,
+               bbox_to_anchor=(0.5, 1 - 1.0 / H))
+    fig.suptitle(title or f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM, "
+                 "patients clustered within each group; label: log2FC, * FDR < 0.05)", fontsize=22, y=1 - 0.3 / H)
+    return fig

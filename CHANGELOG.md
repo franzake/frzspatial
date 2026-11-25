@@ -17,6 +17,10 @@
   1); `None` turns it off. `de.overlap_ratio` matches smiDE's algorithm exactly (tests).
 - `smide(cells=...)`: restrict the tested cells (e.g. a tissue niche) while the neighbour covariate still counts
   every cell.
+- `pl.plot_smide_heatmap(res)`: top genes x all families (log2FC, FDR dots, clustered genes).
+  `pl.plot_smide_patients(sdata, res, celltype_col, contrast, group_col)`: per cell type, patients' pseudobulk of the
+  contrast's top genes as robust z-scores, patients clustered within each group with their trees. `cells=` (here and
+  in `smide`) also takes any obs column for its non-missing cells, e.g. `"ng_glom_id"`.
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,

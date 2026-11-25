@@ -220,3 +220,22 @@ def test_smide_cells_restricts_tested_cells_only(sim):
     sub = de.smide(sim[keep].copy(), "ct", "~ disease + (1|patient)", **kw)   # neighbours cut at the border
     m = r.set_index("gene")["neighbor_beta"].reindex(sub["gene"])
     assert not np.allclose(m.to_numpy(), sub["neighbor_beta"].to_numpy())
+
+
+def test_smide_plots(sim):
+    import matplotlib
+    matplotlib.use("Agg")
+    from frzspatial.pl import plot_smide_heatmap, plot_smide_patients
+
+    sim.layers["counts"] = sim.X
+    sim.obs["in_glom"] = np.where(sim.obsm["spatial"][:, 0] % 1000 < 200, "g1", None)   # a glomerulus-id-like column
+    res = de.smide(sim, "ct", "~ disease + (1|patient)",
+                   contrasts={"G1_vs_N": ("disease", "G1", "N"), "G2_vs_N": ("disease", "G2", "N")}, px_um=1,
+                   block_cols=("patient",), min_cells=20, n_jobs=1, store=False, cells="in_glom")
+    assert (res["n_cells"] < (sim.obs["ct"] == "A").sum()).all()
+    fig = plot_smide_heatmap(res, n_top=3)
+    assert fig.axes
+    fig = plot_smide_patients(sim, res, "ct", "G1_vs_N", group_col="disease", patient_col="patient",
+                              cells="in_glom", n_genes=6, min_cells=3, column_labels="slide")
+    assert len(fig.axes) >= 3
+    assert [t.get_text() for t in fig.legends[0].get_texts()][:2] == ["N", "G1"]   # reference first, then case

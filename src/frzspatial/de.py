@@ -438,8 +438,8 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
     engine
         ``"python"`` (default) or ``"glmmtmb"`` (R; any random-effect terms; see ``check_r()``).
     cells
-        Restrict the tested cells (every family, and the overlap ratio) to these: an obs column of booleans or a
-        boolean array, e.g. the cells of a tissue niche. The neighbour covariate still counts every cell (spillover
+        Restrict the tested cells (every family, and the overlap ratio) to these: an obs column (booleans, or any
+        column for its non-missing cells, e.g. ``"ng_glom_id"``: the cells of a glomerulus) or a boolean array. The neighbour covariate still counts every cell (spillover
         also comes from cells just outside the niche). None: all cells.
     max_overlap_ratio
         NanoString smiDE's contamination screen (``overlap_ratio_metric``), on by default: test, in each cell type,
@@ -520,12 +520,8 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         _log(f"smide: neighbour graph {A.nnz:,} edges ({'k=' + str(n_neighbors) if n_neighbors else f'{radius_um} µm'}"
              f", blocks {block_cols or 'none'})")
 
-    if cells is None:
-        in_cells = np.ones(len(obs), bool)
-    else:
-        in_cells = (obs[cells] if isinstance(cells, str) else pd.Series(np.asarray(cells))).fillna(False).to_numpy(bool)
-        if in_cells.size != len(obs):
-            raise ValueError(f"cells: {in_cells.size} values for {len(obs)} cells")
+    in_cells = _cell_mask(obs, cells)
+    if cells is not None:
         _log(f"smide: tested cells restricted to {int(in_cells.sum()):,} of {len(obs):,}"
              + (f" (obs {cells!r})" if isinstance(cells, str) else ""))
     types = celltypes if celltypes is not None else [t for t in pd.unique(ctype[ok_cell & in_cells])]
@@ -743,6 +739,21 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         tb.uns["smide"] = {"results": out, "params": _jsonable(params),
                            "skipped": pd.DataFrame(skipped, columns=["celltype", "fit", "reason"]).astype(str)}
     return out
+
+
+def _cell_mask(obs, cells):
+    """Boolean mask of `cells`: None (all), an obs column (booleans; any other column: its non-missing cells, e.g. a
+    glomerulus id) or a boolean array."""
+    if cells is None:
+        return np.ones(len(obs), bool)
+    if isinstance(cells, str):
+        col = obs[cells]
+        m = col.fillna(False).to_numpy(bool) if pd.api.types.is_bool_dtype(col) else col.notna().to_numpy()
+    else:
+        m = pd.Series(np.asarray(cells)).fillna(False).to_numpy(bool)
+    if m.size != len(obs):
+        raise ValueError(f"cells: {m.size} values for {len(obs)} cells")
+    return m
 
 
 def _jsonable(d):
