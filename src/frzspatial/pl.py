@@ -465,16 +465,16 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto"
 
 def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_col="sample_id", celltypes=None,
                         cells=None, n_genes=24, min_cells=10, layer="counts", groups=None, palette=None, z_lim=2,
-                        cluster=True, column_labels=None, fontsize=13, cell_borders=True, border_color="0.3",
+                        cluster="all", column_labels=None, fontsize=13, cell_borders=True, border_color="0.3",
                         table="table", title=None):
     """The top genes of one ``smide`` contrast at the level of the patients: one heatmap per cell type.
 
     Each column is one patient's pseudobulk of the cell type (sum of raw counts over its cells, log CPM), each row a
     gene (the `n_genes` smallest p of `contrast` in that type, ordered by fold change; label: log2FC and * when
     FDR < 0.05). Values are robust z-scores per gene across patients (median / MAD), so a few extreme patients don't
-    flatten the others' contrast. Patients are grouped by `group_col` and, with `cluster`, ordered by hierarchical
-    clustering within each group (average linkage, Euclidean), with each group's tree drawn above it. An effect
-    carried by most patients of a group reads as a block.
+    flatten the others' contrast. Patients are ordered by hierarchical clustering (average linkage, Euclidean) of
+    their gene profiles, the tree drawn above, and coloured by `group_col` in the strip: if the groups separate without
+    being told apart, the contrast's signal is carried by most patients.
 
     Parameters
     ----------
@@ -494,20 +494,23 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
         Group order (default: the contrast's reference, its case, then the other groups) and ``{group: colour}``.
     z_lim
         Colour limit of the robust z-scores.
+    cluster
+        ``"all"`` (default): one tree over all patients; ``"within"``: patients clustered within each group, one tree
+        per group, groups side by side; None: patients by group, unclustered.
     column_labels
         obs column whose value labels each patient's column (e.g. ``"slide"``). None (default): no labels, since
         patient ids can be identifiers.
     fontsize
-        Base size of all text (gene labels; panel titles, legend, colour bar and figure title scale from it). Gene
-        labels shrink further when many genes would not fit.
+        Base size of all text: gene and column labels, panel titles, legend, colour bar and figure title scale from it,
+        and so does the figure (rows, columns and gaps are sized from the text), so nothing overlaps at any size.
     cell_borders, border_color
         Draw a thin line between every two cells, in this colour.
 
     Returns
     -------
     Figure
-        Its height grows with `n_genes` (two panel rows: about 8 + 0.58 x n_genes inches; in Quarto set the chunk's
-        fig-height to ``fig.get_size_inches()[1]``).
+        Sized from `fontsize`, `n_genes` and the number of patients; its size is logged (in Quarto, set the chunk's
+        fig-width / fig-height to it, or the figure is redrawn at another size).
     """
     import matplotlib.pyplot as plt
     import scipy.sparse as sp
@@ -535,19 +538,18 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     gidx = pd.Index(names)
     keep_cells = _cell_mask(obs, cells) & obs[group_col].astype(str).isin(groups).to_numpy() \
         & obs[patient_col].notna().to_numpy()
+    import textwrap
+
+    from ._utils import _log
+
     cmap = _smide_cmap()
-    ncol = 2 if len(types) > 1 else 1
-    nrow = int(np.ceil(len(types) / ncol))
-    # layout in inches: each panel row = its heatmap, with its trees, title and column labels around it
-    heat_h = max(3.5, 0.25 * n_genes + 1.2)
-    tree_h = 0.16 * heat_h
-    top_h, gap_h, bot_h = 1.6 + tree_h + 0.8, tree_h + 1.8, 1.2
-    fig_h = top_h + nrow * heat_h + (nrow - 1) * gap_h + bot_h
-    fig, axes = plt.subplots(nrow, ncol, figsize=(15 * ncol, fig_h), squeeze=False)
-    fs = fontsize
-    label_size = min(fs, 520 / n_genes)
-    im, plotted = None, set()
-    for ax, t in zip(axes.ravel(), types):
+    mode = {True: "within", False: None}.get(cluster, cluster)
+    if mode not in ("all", "within", None):
+        raise ValueError("cluster must be 'all', 'within' or None")
+
+    # 1. Per cell type: patients' pseudobulk, robust z, column order and trees
+    panels = []
+    for t in types:
         r = r_all[r_all["celltype"] == t]
         top = r.nsmallest(n_genes, "p_for_inference").sort_values("log2FC", ascending=False)
         m = keep_cells & (obs[celltype_col].astype(str) == t).to_numpy()
@@ -564,54 +566,98 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
         z = np.log1p(pb)
         med = np.median(z, axis=0)
         mad = 1.4826 * np.median(np.abs(z - med), axis=0)
-        z = ((z - med) / np.where(mad > 1e-9, mad, z.std(axis=0).clip(min=1e-9))).T
-        order, edges, trees = [], [], []
-        for grp in groups:
-            cols = np.flatnonzero(pats["g"].astype(str).to_numpy() == grp)
-            if cluster and len(cols) > 2:
-                tree = linkage(np.clip(z[:, cols], -z_lim, z_lim).T, "average", metric="euclidean")
-                cols = cols[leaves_list(tree)]
-                trees.append((len(order), len(cols), tree))
-            order += list(cols)
-            edges.append(len(order) - 0.5)
-        z, pats = z[:, order], pats.iloc[order]
+        z = ((z - med) / np.where(mad > 1e-9, mad, z.std(axis=0).clip(min=1e-9))).T   # genes x patients
+        zc = np.clip(z, -z_lim, z_lim)
+        order, edges, trees = list(range(len(pats))), [], []
+        if mode == "all" and len(pats) > 2:
+            tree = linkage(zc.T, "average", metric="euclidean")
+            order = list(leaves_list(tree))
+            trees = [(0, len(pats), tree)]
+        elif mode == "within" or mode is None:
+            order = []
+            for grp in groups:
+                cols = np.flatnonzero(pats["g"].astype(str).to_numpy() == grp)
+                if mode == "within" and len(cols) > 2:
+                    tree = linkage(zc[:, cols].T, "average", metric="euclidean")
+                    cols = cols[leaves_list(tree)]
+                    trees.append((len(order), len(cols), tree))
+                order += list(cols)
+                if len(cols):
+                    edges.append(len(order) - 0.5)
+            edges = edges[:-1]
+        labels = [f"{gname} ({l:+.1f}){' *' if q < 0.05 else ''}"
+                  for gname, l, q in zip(top["gene"], top["log2FC"], top["FDR_BH"])]
+        panels.append(dict(t=t, z=zc[:, order], pats=pats.iloc[order], labels=labels, trees=trees, edges=edges))
+
+    # 2. Layout in inches, every size from fontsize
+    fs = fontsize
+    gene_fs, col_fs, title_fs = 0.85 * fs, 0.75 * fs, 1.3 * fs
+    row_h = gene_fs * 1.55 / 72                                          # one gene row
+    col_w = max(0.3, fs * 1.6 / 72)                                      # one patient column
+    n_pat = max(len(pp["pats"]) for pp in panels)
+    heat_w = max(6.0, col_w * n_pat)
+    axes_h = max(3.0, row_h * (n_genes + 1.3))                           # genes + the group strip
+    label_w = max(len(x) for pp in panels for x in pp["labels"]) * gene_fs * 0.6 / 72 + 0.3
+    tree_h = max(0.8, 0.12 * axes_h)
+    title_h = title_fs * 1.9 / 72
+    xlab_h = (max((len(str(v)) for pp in panels for v in pp["pats"][column_labels]), default=0) * col_fs * 0.62 / 72
+              + 0.3) if column_labels else 0.25
+    block_h = title_h + tree_h + axes_h + xlab_h
+    ncol = 2 if len(panels) > 1 else 1
+    nrow = int(np.ceil(len(panels) / ncol))
+    cell_w = label_w + heat_w + 0.6
+    cbar_w = 0.9 + fs * 6.5 / 72                                         # bar, its tick labels and 2-line label
+    W = ncol * cell_w + cbar_w
+    sup = title or (f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM; "
+                    + {"all": "patients clustered by hierarchical clustering",
+                       "within": "patients clustered within each group", None: "patients by group"}[mode]
+                    + "; label: log2FC, * FDR < 0.05)")
+    sup = "\n".join(textwrap.wrap(sup, width=max(40, int(W * 72 / (1.5 * fs * 0.55)))))
+    header_h = (sup.count("\n") + 1) * 1.5 * fs * 1.45 / 72 + 1.3 * fs * 2.2 / 72 + 0.4
+    H = header_h + nrow * block_h + (nrow - 1) * 0.5 + 0.3
+    fig = plt.figure(figsize=(W, H))
+
+    # 3. Panels
+    im, plotted = None, set()
+    for k, pp in enumerate(panels):
+        rr, cc = divmod(k, ncol)
+        x0 = cc * cell_w + label_w + 0.3
+        y0 = H - header_h - (rr + 1) * block_h - rr * 0.5 + xlab_h
+        ax = fig.add_axes([x0 / W, y0 / H, heat_w / W, axes_h / H])
+        z, pats = pp["z"], pp["pats"]
         plotted |= set(pats["g"].astype(str))
-        im = ax.imshow(np.clip(z, -z_lim, z_lim), cmap=cmap, vmin=-z_lim, vmax=z_lim, aspect="auto",
-                       interpolation="none")
+        im = ax.imshow(z, cmap=cmap, vmin=-z_lim, vmax=z_lim, aspect="auto", interpolation="none")
         ax.scatter(range(len(pats)), [-1.1] * len(pats), c=[palette.get(g, "0.6") for g in pats["g"].astype(str)],
-                   marker="s", s=180, clip_on=False)
-        ax.set_yticks(range(len(top)), [f"{gname} ({l:+.1f}){' *' if q < 0.05 else ''}" for gname, l, q
-                                        in zip(top["gene"], top["log2FC"], top["FDR_BH"])], fontsize=label_size)
+                   marker="s", s=(col_w * 72 * 0.55) ** 2, clip_on=False, zorder=3)
+        ax.set_yticks(range(len(pp["labels"])), pp["labels"], fontsize=gene_fs)
         if column_labels:
-            ax.set_xticks(range(len(pats)), pats[column_labels].astype(str), rotation=90, fontsize=fs * 0.7)
+            ax.set_xticks(range(len(pats)), pats[column_labels].astype(str), rotation=90, fontsize=col_fs)
         else:
             ax.set_xticks([])
-        for e in edges[:-1]:
+        for e in pp["edges"]:
             ax.axvline(e, c="k", lw=2, zorder=4)
-        for start, k, tree in trees:
-            dax = ax.inset_axes([start - 0.5, 1.0, k, 0.16], transform=blended_transform_factory(ax.transData, ax.transAxes))
+        for start, nk, tree in pp["trees"]:
+            dax = ax.inset_axes([start - 0.5, 1.0, nk, tree_h / axes_h],
+                                transform=blended_transform_factory(ax.transData, ax.transAxes))
             dendrogram(tree, ax=dax, no_labels=True, color_threshold=0, above_threshold_color="0.25")
-            dax.set_xlim(0, 10 * k)
+            dax.set_xlim(0, 10 * nk)
             dax.set_axis_off()
         if cell_borders:
-            _cell_borders(ax, len(top), len(pats), border_color)
+            _cell_borders(ax, len(pp["labels"]), len(pats), border_color)
         else:
             ax.grid(False)
         ax.set_xlim(-0.5, len(pats) - 0.5)
-        ax.set_ylim(len(top) - 0.5, -1.8)
-        ax.set_title(f"{t}: {len(pats)} patients (>= {min_cells} cells), top {len(top)} genes", fontsize=fs * 1.4,
-                     pad=(tree_h + 0.15) * 72)
-    for ax in axes.ravel()[len(types):]:
-        ax.set_axis_off()
-    H = fig.get_size_inches()[1]
-    fig.subplots_adjust(left=0.07, right=0.92, bottom=bot_h / H, top=1 - top_h / H, wspace=0.22,
-                        hspace=gap_h / heat_h)
-    cax = fig.add_axes([0.94, 0.35, 0.01, 0.3])
+        ax.set_ylim(len(pp["labels"]) - 0.5, -1.8)
+        ax.set_title(f"{pp['t']}: {len(pats)} patients (>= {min_cells} cells), top {len(pp['labels'])} genes",
+                     fontsize=title_fs, pad=tree_h * 72 + 6)
+
+    # 4. Colour bar, legend, title
+    cax = fig.add_axes([(ncol * cell_w + 0.3) / W, 0.35, 0.22 / W, 0.3])
     _sat_colorbar(fig, im, z_lim, "robust z-score across patients\n(log CPM, median / MAD)", cax=cax, fontsize=fs)
     shown = [g for g in groups if g in plotted]   # groups with at least one patient column
-    handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in shown]
-    fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=fs * 1.4, frameon=False,
-               bbox_to_anchor=(0.5, 1 - 1.0 / H))
-    fig.suptitle(title or f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM, "
-                 "patients clustered within each group; label: log2FC, * FDR < 0.05)", fontsize=fs * 1.7, y=1 - 0.3 / H)
+    handles = [plt.Line2D([], [], marker="s", ls="", ms=fs * 1.1, color=palette.get(g, "0.6"), label=g) for g in shown]
+    fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=1.3 * fs, frameon=False,
+               bbox_to_anchor=(0.5, 1 - (header_h - 1.3 * fs * 2.2 / 72 - 0.2) / H))
+    fig.suptitle(sup, fontsize=1.5 * fs, y=1 - 0.15 / H, va="top")
+    _log(f"plot_smide_patients: figure {W:.1f} x {H:.1f} in (in Quarto, set the chunk's fig-width / fig-height to these)")
     return fig
