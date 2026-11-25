@@ -12,7 +12,7 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 from .core import coordinate_system, core_box
 
 __all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano", "plot_smide_heatmap",
-           "plot_smide_patients"]
+           "plot_smide_patients", "plot_group_proportions", "plot_group_values", "plot_radial_position"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -465,7 +465,7 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     labels = [f"{g} ({best[g]:+.1f})" for g in l2fc.index]
     xlabels = [o.split(" | ")[1].replace("_vs_", " vs ") for o in order]
     row_h = gene_fs * 1.55 / 72
-    col_w = max(0.5, fs * 2.4 / 72)
+    col_w = fs * 2.4 / 72
     axes_h = row_h * (len(l2fc) + 1.3)                                   # genes + the cell-type header
     heat_w = col_w * len(order)
     label_w = max(len(x) for x in labels) * gene_fs * 0.6 / 72 + 0.3
@@ -637,12 +637,12 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     fs = fontsize
     gene_fs, col_fs, title_fs = 0.85 * fs, 0.75 * fs, 1.3 * fs
     row_h = gene_fs * 1.55 / 72                                          # one gene row
-    col_w = max(0.3, fs * 1.6 / 72)                                      # one patient column
+    col_w = fs * 1.6 / 72                                                # one patient column
     n_pat = max(len(pp["pats"]) for pp in panels)
-    heat_w = max(6.0, col_w * n_pat)
-    axes_h = max(3.0, row_h * (n_genes + 1.3))                           # genes + the group strip
+    heat_w = max(fs * 0.3, col_w * n_pat)
+    axes_h = max(fs * 0.15, row_h * (n_genes + 1.3))                     # genes + the group strip
     label_w = max(len(x) for pp in panels for x in pp["labels"]) * gene_fs * 0.6 / 72 + 0.3
-    tree_h = max(0.8, 0.12 * axes_h)
+    tree_h = max(fs * 0.06, 0.12 * axes_h)
     title_h = title_fs * 1.9 / 72
     xlab_h = (max((len(str(v)) for pp in panels for v in pp["pats"][column_labels]), default=0) * col_fs * 0.62 / 72
               + 0.3) if column_labels else 0.25
@@ -708,4 +708,254 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
                bbox_to_anchor=(0.5, 1 - (header_h - 1.3 * fs * 2.2 / 72 - 0.2) / H))
     fig.suptitle(sup, fontsize=1.5 * fs, y=1 - 0.15 / H, va="top")
     _log(f"plot_smide_patients: figure {W:.1f} x {H:.1f} in (in Quarto, set the chunk's fig-width / fig-height to these)")
+    return fig
+
+
+def _stars(q):
+    return "****" if q < 1e-4 else "***" if q < 1e-3 else "**" if q < 1e-2 else "*" if q < 0.05 else ""
+
+
+def _group_tests(values, groups):
+    """Kruskal-Wallis across groups and pairwise two-sided Mann-Whitney (Wilcoxon rank-sum) p-values."""
+    from itertools import combinations
+
+    from scipy.stats import kruskal, mannwhitneyu
+
+    vals = [np.asarray(values[g], float) for g in groups]
+    ok = [v for v in vals if len(v) > 1]
+    kw = kruskal(*ok).pvalue if len(ok) > 1 and np.ptp(np.concatenate(ok)) > 0 else np.nan
+    pairs = []
+    for a, b in combinations(range(len(groups)), 2):
+        va, vb = vals[a], vals[b]
+        p = mannwhitneyu(va, vb, alternative="two-sided").pvalue if len(va) > 1 and len(vb) > 1 else np.nan
+        pairs.append((groups[a], groups[b], p))
+    return kw, pairs
+
+
+def _bh_q(p):
+    """Benjamini-Hochberg q-values (NaN p stay NaN)."""
+    from .de import _bh
+
+    p = np.asarray(p, float)
+    return _bh(p, int(np.isfinite(p).sum()))
+
+
+def _box_by_group(ax, values, groups, palette, fontsize, ylabel=None, title=None, brackets=(), percent=False,
+                  seed=0):
+    """Box (no outliers) + jittered points per group on `ax`; `brackets`: [(group a, group b, label)]."""
+    rng = np.random.default_rng(seed)
+    data = [np.asarray(values.get(g, []), float) for g in groups]
+    bp = ax.boxplot(data, positions=range(len(groups)), widths=0.6, showfliers=False, patch_artist=True,
+                    medianprops=dict(color="k", lw=0.8), whiskerprops=dict(lw=0.6), capprops=dict(lw=0.6),
+                    boxprops=dict(lw=0.6))
+    for patch, g in zip(bp["boxes"], groups):
+        patch.set_facecolor(palette.get(g, "0.7"))
+        patch.set_alpha(0.75)
+    for k, d in enumerate(data):
+        ax.scatter(k + rng.uniform(-0.15, 0.15, len(d)), d, s=fontsize * 0.9, c="k", lw=0, zorder=3)
+    ax.set_xticks(range(len(groups)), groups, fontsize=fontsize, rotation=45, ha="right")
+    ax.tick_params(axis="y", labelsize=fontsize * 0.9)
+    if percent:
+        from matplotlib.ticker import PercentFormatter
+
+        ax.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+    if ylabel:
+        ax.set_ylabel(ylabel, fontsize=fontsize)
+    if title:
+        ax.set_title(title, fontsize=fontsize)
+    nonempty = [d for d in data if len(d)]
+    allv = np.concatenate(nonempty) if nonempty else np.array([0.0])
+    top = float(np.max(allv))
+    span = float(np.ptp(allv)) or max(abs(top), 1e-3)
+    for k, (a, b, label) in enumerate(brackets):
+        ia, ib = groups.index(a), groups.index(b)
+        y = top + span * (0.08 + 0.12 * k)
+        ax.plot([ia, ia, ib, ib], [y - span * 0.02, y, y, y - span * 0.02], c="k", lw=0.6)
+        ax.text((ia + ib) / 2, y, label, ha="center", va="bottom", fontsize=fontsize)
+    if brackets:
+        ax.set_ylim(top=top + span * (0.12 + 0.12 * len(brackets)))
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.grid(False)
+
+
+def _facet_grid(n, ncols, figsize, fontsize):
+    import matplotlib.pyplot as plt
+
+    ncols = ncols or min(n, 3)
+    nrows = int(np.ceil(n / ncols))
+    figsize = figsize or (ncols * fontsize * 0.27, nrows * fontsize * 0.33)
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
+    for ax in axes.ravel()[n:]:
+        ax.set_axis_off()
+    return fig, axes
+
+
+def plot_group_proportions(obs, celltype_col, group_col, patient_col="sample_id", cells=None, celltypes=None,
+                           groups=None, palette=None, min_cells=20, ncols=None, fontsize=7, figsize=None,
+                           show_ns=False):
+    """Share of each cell type among a patient's cells, by group: one facet per cell type, box + patient points.
+
+    The denominator is each patient's selected cells (`cells`, e.g. ``"ng_glom_id"``: the cells of the tagged
+    glomeruli, so the shares are of glomerular cells). Per facet: Kruskal-Wallis across the groups (in the title) and
+    pairwise Wilcoxon rank-sum tests, BH-adjusted over all facets' pairs; brackets with stars mark q < 0.05.
+
+    Parameters
+    ----------
+    obs
+        Cell metadata (or an AnnData: its ``obs``).
+    celltype_col, group_col, patient_col
+        obs columns of the cell types, the group (e.g. diagnosis) and the patient.
+    cells
+        The cells counted: an obs column (booleans, or any column for its non-missing cells) or a boolean array.
+    celltypes, groups
+        Facets and their order (default: the types among the cells, by abundance) and group order (default: sorted).
+    palette
+        ``{group: colour}``.
+    min_cells
+        Patients with fewer selected cells are left out.
+    fontsize, figsize, ncols
+        Text size (all text), figure size in inches (default from fontsize), facets per row.
+    show_ns
+        Also draw brackets for q >= 0.05 (labelled "ns").
+
+    Returns
+    -------
+    (Figure, DataFrame)
+        The figure and the statistics: per cell type the Kruskal-Wallis p, each pair's p and BH q.
+    """
+    from ._palette import scanpy_palette
+    from .de import _cell_mask
+
+    obs = getattr(obs, "obs", obs)
+    m = _cell_mask(obs, cells) & obs[group_col].notna().to_numpy() & obs[patient_col].notna().to_numpy()
+    o = obs.loc[m, [celltype_col, group_col, patient_col]].astype(str)
+    if groups is None:
+        groups = sorted(o[group_col].unique())
+    groups = list(groups)
+    o = o[o[group_col].isin(groups)]
+    n = o.groupby(patient_col).size()
+    o = o[o[patient_col].isin(n.index[n >= min_cells])]
+    share = pd.crosstab(o[patient_col], o[celltype_col], normalize="index")
+    grp = o.drop_duplicates(patient_col).set_index(patient_col)[group_col].reindex(share.index)
+    types = list(celltypes) if celltypes is not None else list(o[celltype_col].value_counts().index)
+    palette = palette or scanpy_palette(groups)
+
+    def vals(t):
+        return {g: (share.loc[grp == g, t].to_numpy() if t in share else np.array([])) for g in groups}
+
+    rows = []
+    for t in types:
+        kw, pairs = _group_tests(vals(t), groups)
+        rows += [dict(celltype=t, kruskal_p=kw, group_a=a, group_b=b, p=p) for a, b, p in pairs]
+    stats = pd.DataFrame(rows)
+    stats["q"] = _bh_q(stats["p"].to_numpy())
+    fig, axes = _facet_grid(len(types), ncols, figsize, fontsize)
+    for k, (ax, t) in enumerate(zip(axes.ravel(), types)):
+        st = stats[stats["celltype"] == t]
+        br = [(r.group_a, r.group_b, _stars(r.q) or "ns") for r in st.itertuples()
+              if np.isfinite(r.q) and (r.q < 0.05 or show_ns)]
+        kw = st["kruskal_p"].iloc[0] if len(st) else np.nan
+        _box_by_group(ax, vals(t), groups, palette, fontsize, title=f"{t}\nKW p = {kw:.2g}", brackets=br,
+                      percent=True, ylabel="share of cells" if k % axes.shape[1] == 0 else None)
+    fig.tight_layout(pad=0.3, w_pad=0.4, h_pad=0.5)
+    return fig, stats
+
+
+def plot_group_values(values, group, groups=None, palette=None, ylabel=None, title=None, fontsize=7, figsize=None,
+                      show_ns=False):
+    """One value per patient (or per unit) by group: box + points, Kruskal-Wallis in the title, BH-adjusted pairwise
+    Wilcoxon brackets for q < 0.05 (e.g. the mean number of cells per glomerulus of each patient).
+
+    Parameters
+    ----------
+    values, group
+        Series of the values and of their groups (same index).
+    groups, palette
+        Group order and ``{group: colour}``.
+
+    Returns
+    -------
+    (Figure, DataFrame)
+    """
+    import matplotlib.pyplot as plt
+
+    from ._palette import scanpy_palette
+
+    d = pd.DataFrame({"v": values, "g": group}).dropna()
+    d["g"] = d["g"].astype(str)
+    groups = list(groups) if groups is not None else sorted(d["g"].unique())
+    palette = palette or scanpy_palette(groups)
+    v = {g: d.loc[d["g"] == g, "v"].to_numpy() for g in groups}
+    kw, pairs = _group_tests(v, groups)
+    stats = pd.DataFrame([dict(kruskal_p=kw, group_a=a, group_b=b, p=p) for a, b, p in pairs])
+    stats["q"] = _bh_q(stats["p"].to_numpy())
+    br = [(r.group_a, r.group_b, _stars(r.q) or "ns") for r in stats.itertuples()
+          if np.isfinite(r.q) and (r.q < 0.05 or show_ns)]
+    fig, ax = plt.subplots(figsize=figsize or (fontsize * 0.3, fontsize * 0.33))
+    _box_by_group(ax, v, groups, palette, fontsize, ylabel=ylabel,
+                  title=(f"{title}\n" if title else "") + f"KW p = {kw:.2g}", brackets=br)
+    fig.tight_layout(pad=0.3)
+    return fig, stats
+
+
+def plot_radial_position(obs, celltype_col, dist_col="ng_dist", celltypes=None, palette=None, cells=None, xmax=1.3,
+                         fontsize=7, figsize=None):
+    """Where each cell type sits inside a structure: density of its cells' radial position (0 = centre, 1 = edge,
+    e.g. ``ng_dist`` of the tagged glomeruli), one ridge per cell type, its median marked.
+
+    Parameters
+    ----------
+    obs
+        Cell metadata (or an AnnData: its ``obs``).
+    celltype_col, dist_col
+        obs columns of the cell types and of the radial position.
+    celltypes
+        Ridges, top to bottom (default: by median position, the most central first).
+    palette
+        ``{cell type: colour}``.
+    cells
+        Cells to include, as ``plot_group_proportions``.
+    xmax
+        Positions beyond are drawn at `xmax`.
+
+    Returns
+    -------
+    Figure
+    """
+    import matplotlib.pyplot as plt
+    from scipy.stats import gaussian_kde
+
+    from ._palette import scanpy_palette
+    from .de import _cell_mask
+
+    obs = getattr(obs, "obs", obs)
+    m = _cell_mask(obs, cells) & obs[dist_col].notna().to_numpy()
+    o = obs.loc[m, [celltype_col, dist_col]]
+    o = o.assign(t=o[celltype_col].astype(str), d=o[dist_col].astype(float).clip(upper=xmax))
+    types = list(celltypes) if celltypes is not None else list(o.groupby("t")["d"].median().sort_values().index)
+    palette = palette or scanpy_palette(types)
+    x = np.linspace(0, xmax, 300)
+    fig, ax = plt.subplots(figsize=figsize or (fontsize * 0.38, fontsize * 0.05 * (len(types) + 2)))
+    for k, t in enumerate(types):
+        d = o.loc[o["t"] == t, "d"].to_numpy()
+        if len(d) < 5:
+            continue
+        dens = gaussian_kde(d)(x)
+        y = 0.85 * dens / dens.max()
+        base = len(types) - 1 - k
+        ax.fill_between(x, base, base + y, color=palette.get(t, "0.6"), alpha=0.8, lw=0)
+        ax.plot(x, base + y, c="k", lw=0.5)
+        med = float(np.median(d))
+        ax.plot([med, med], [base, base + float(np.interp(med, x, y))], c="k", lw=0.8)
+        ax.text(xmax * 1.01, base + 0.1, f"{t} (n = {len(d):,})", fontsize=fontsize, va="bottom")
+    ax.set_yticks([])
+    ax.set_xlim(0, xmax)
+    ax.set_ylim(-0.1, len(types))
+    ax.set_xlabel("radial position (0 = centre, 1 = edge)", fontsize=fontsize)
+    ax.tick_params(axis="x", labelsize=fontsize * 0.9)
+    for side in ("top", "right", "left"):
+        ax.spines[side].set_visible(False)
+    ax.grid(False)
+    fig.tight_layout(pad=0.3)
     return fig

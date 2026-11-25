@@ -24,6 +24,9 @@
   Both heatmaps: the same blue - white - red palette with saturated ends, a border around every cell
   (`cell_borders`, `border_color`), one `fontsize` for all text; `plot_smide_heatmap` clips automatically
   (`clip="auto"`), stars FDR < 0.05 and gives each gene's log2FC in its label.
+- Figure helpers: `pl.plot_group_proportions` (per-patient cell-type shares by group, Kruskal-Wallis + BH-adjusted
+  pairwise Wilcoxon brackets), `pl.plot_group_values` (one value per patient by group, same tests),
+  `pl.plot_radial_position` (ridges of radial position, e.g. `ng_dist` in glomeruli).
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,
