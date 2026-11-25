@@ -31,6 +31,9 @@
   gene: the right universe for a targeted panel, no FDR cut-off), Enrichr libraries cached as JSON (`gene_sets`:
   MSigDB Hallmark, GO Biological Process 2025, Reactome 2024 by default); `pl.plot_gsea_dotplot` (gene sets x
   families, NES colour, FDR size) and `pl.plot_gsea_bars` (one family's top sets per library). New dependency: gseapy.
+- `plot_smide_heatmap`: the genes' clustering tree on the rows (`row_tree`), `n_clusters` (cut, separated and
+  numbered), and a pathway strip (`row_annotation`), e.g. `enrich.gene_themes(gsea)`: each gene's broad programme
+  from the leading edges of the significant gene sets (`enrich.THEMES`).
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,

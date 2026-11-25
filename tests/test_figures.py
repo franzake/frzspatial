@@ -69,3 +69,21 @@ def test_smide_gsea_and_plots():
     assert a["nes"] > 1.5 and a["fdr"] < 0.05 and b["fdr"] > 0.05 and a["size"] == 25
     assert plot_gsea_dotplot(g, "lib", n_top=3).axes
     assert plot_gsea_bars(g, "A", "X_vs_Y").axes
+
+
+def test_gene_themes_and_annotated_heatmap():
+    from frzspatial.enrich import gene_themes
+    from frzspatial.pl import plot_smide_heatmap
+
+    gsea = pd.DataFrame({"term": ["Extracellular Matrix Organization", "Interferon Gamma Response", "Coagulation"],
+                         "fdr": [0.01, 0.01, 0.2], "leading_edge": ["g1;g2", "g2;g3", "g4"],
+                         "celltype": "A", "contrast": "X_vs_Y", "library": "lib"})
+    th = gene_themes(gsea)
+    assert th["g1"] == "Basement membrane / ECM" and th["g3"] == "Interferon / antigen presentation"
+    assert "g4" not in th.index                                   # its set is not significant
+    rng = np.random.default_rng(0)
+    res = pd.DataFrame({"celltype": np.repeat(["A", "B"], 20), "contrast": "X_vs_Y",
+                        "gene": [f"g{i}" for i in range(20)] * 2, "log2FC": rng.normal(size=40),
+                        "FDR_BH": rng.uniform(0, 0.04, 40)})
+    fig = plot_smide_heatmap(res, n_top=10, row_annotation=th, n_clusters=3)
+    assert len(fig.axes) >= 4                                     # heatmap, strip, tree, colour bar
