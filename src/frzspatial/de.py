@@ -381,7 +381,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
           neighbor_agg="sum", neighbor_scale=1e4, neighbor_transform="ranknorm", coords="spatial", px_um=PX_UM,
           min_detection=0.10, min_cells=50, max_cells_per_group=None, contrast_mode="subset", engine="python",
           n_jobs=-1, batch_size=32, checkpoint_dir=None, max_grad=1e-2, seed=0, store=True, rscript_bin=None,
-          max_overlap_ratio=None):
+          max_overlap_ratio=1.5):
     """smiDE differential expression for every gene in any cell types of a SpatialData object.
 
     One family = one target cell type x one contrast. Per gene, an NB2 count model of the raw counts of the family's
@@ -438,10 +438,13 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
     engine
         ``"python"`` (default) or ``"glmmtmb"`` (R; any random-effect terms; see ``check_r()``).
     max_overlap_ratio
-        NanoString smiDE's contamination screen (``overlap_ratio_metric``): test, in each cell type, only the genes
-        whose overlap ratio (mean expression in the type's neighbours of other types / mean in the type) is below this
-        (smiDE's example: 1). None (default): no screen; the ratio is still reported (``overlap_ratio``) to flag genes
-        whose change may be spillover.
+        NanoString smiDE's contamination screen (``overlap_ratio_metric``), on by default: test, in each cell type,
+        only the genes whose overlap ratio (mean expression in the type's neighbours of other types / mean in the
+        type) is below this; the others leave the BH family. Default 1.5: on the CHARU MN glomerular types
+        (2026-11-25), half the genes sit near 1 (broadly expressed, about as abundant in a type as around it), so
+        smiDE's example cut-off of 1 drops 40-57 % of the panel, while 1.5 drops the 3-5 % clearly enriched around the
+        type (neighbour markers, e.g. podocyte VEGFA / NPHS2 in mesangial cells, ratio ~4). Use 1 for smiDE's example,
+        None for no screen. The ratio is reported either way (``overlap_ratio``).
     rscript_bin
         Rscript of the R with glmmTMB for ``engine="glmmtmb"`` (default: ``$FRZSPATIAL_RSCRIPT``, else ``Rscript``
         on the PATH), e.g. a conda R kept apart from the R of the other R tools.
