@@ -87,3 +87,17 @@ def test_gene_themes_and_annotated_heatmap():
                         "FDR_BH": rng.uniform(0, 0.04, 40)})
     fig = plot_smide_heatmap(res, n_top=10, row_annotation=th, n_clusters=3)
     assert len(fig.axes) >= 4                                     # heatmap, strip, tree, colour bar
+
+
+def test_cluster_enrichment_and_labels():
+    from frzspatial.enrich import cluster_enrichment, cluster_labels
+
+    bg = [f"g{i}" for i in range(500)]
+    clusters = pd.Series({**{f"g{i}": 1 for i in range(10)}, **{f"g{i}": 2 for i in range(100, 110)}})
+    sets = {"lib": {"planted": [f"g{i}" for i in range(8)] + [f"g{i}" for i in range(300, 310)],
+                    "other": [f"g{i}" for i in range(200, 240)]}}
+    e = cluster_enrichment(clusters, sets, bg, min_size=5)
+    top = e[(e["cluster"] == 1)].iloc[0]
+    assert top["term"] == "planted" and top["overlap"] == 8 and top["fdr"] < 1e-6
+    labs = cluster_labels(e)
+    assert labs[1] == "planted" and labs[2] == "n.s."

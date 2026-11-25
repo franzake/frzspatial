@@ -13,7 +13,7 @@ from .core import coordinate_system, core_box
 
 __all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano", "plot_smide_heatmap",
            "plot_smide_patients", "plot_group_proportions", "plot_group_values", "plot_radial_position",
-           "plot_gsea_dotplot", "plot_gsea_bars"]
+           "plot_gsea_dotplot", "plot_gsea_bars", "smide_heatmap_clusters"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -412,9 +412,47 @@ def _cell_borders(ax, nrow, ncol, color, lw=0.5):
     ax.hlines(np.arange(-0.5, nrow + 0.5, 1), -0.5, ncol - 0.5, colors=color, linewidths=lw, zorder=2)
 
 
+def _smide_heatmap_data(res, celltypes, contrasts, n_top, fdr, clip, n_clusters):
+    """Genes, log2FC / FDR matrices, tree and clusters (numbered top to bottom) of ``plot_smide_heatmap``."""
+    from scipy.cluster.hierarchy import fcluster, leaves_list, linkage
+
+    types, cons = _smide_order(res, celltypes, contrasts)
+    fam = res.assign(family=res["celltype"].astype(str) + " | " + res["contrast"].astype(str))
+    order = [f"{t} | {c}" for t in types for c in cons]
+    sig = fam[(fam["FDR_BH"] < fdr) & fam["family"].isin(order)].sort_values("FDR_BH")
+    top = sig.groupby("family", sort=False).head(n_top)["gene"].unique()
+    if not len(top):
+        raise ValueError(f"no gene with FDR < {fdr}")
+    l2fc = fam.pivot_table(index="gene", columns="family", values="log2FC").reindex(index=top, columns=order)
+    q = fam.pivot_table(index="gene", columns="family", values="FDR_BH").reindex(index=top, columns=order)
+    if clip == "auto":
+        clip = max(0.25, float(np.ceil(np.nanpercentile(np.abs(l2fc.to_numpy()), 90) * 4) / 4))
+    tree = None
+    if len(l2fc) > 2:
+        tree = linkage(l2fc.fillna(0).clip(-clip, clip).to_numpy(), "average", metric="correlation")
+        rows = l2fc.index[leaves_list(tree)]
+        l2fc, q = l2fc.loc[rows], q.loc[rows]
+    clusters = None
+    if tree is not None and n_clusters:
+        clusters = fcluster(tree, n_clusters, "maxclust")[leaves_list(tree)]
+        first = {c: k + 1 for k, c in enumerate(dict.fromkeys(clusters))}   # numbered top to bottom
+        clusters = np.array([first[c] for c in clusters])
+    return dict(types=types, cons=cons, order=order, sig=sig, l2fc=l2fc, q=q, clip=clip, tree=tree, clusters=clusters)
+
+
+def smide_heatmap_clusters(res, n_clusters, celltypes=None, contrasts=None, n_top=50, fdr=0.05, clip="auto"):
+    """The gene clusters of ``plot_smide_heatmap`` with the same arguments: ``Series`` gene -> cluster (1 = top), in
+    the heatmap's row order, for annotating the clusters (e.g. ``frzspatial.enrich.cluster_enrichment``)."""
+    d = _smide_heatmap_data(res, celltypes, contrasts, n_top, fdr, clip, n_clusters)
+    if d["clusters"] is None:
+        raise ValueError("fewer than 3 genes: no clustering")
+    return pd.Series(d["clusters"], index=d["l2fc"].index, name="cluster")
+
+
 def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto", fdr=0.05, fontsize=11,
                        cell_borders=True, border_color="0.3", figsize=None, title=None, row_tree=True,
-                       n_clusters=None, row_annotation=None, annotation_palette=None, annotation_title="pathway"):
+                       n_clusters=None, row_annotation=None, annotation_palette=None, annotation_title="pathway",
+                       cluster_labels=None, cluster_label_chars=38):
     """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
 
     Colour: adjusted log2 fold change (red higher in the first group named), on the same blue - white - red scale as
@@ -447,6 +485,10 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
         A strip left of the heatmap colouring each gene by a category, e.g. ``frzspatial.enrich.gene_themes(gsea)``
         (pathway programme from the GSEA leading edges); genes without one stay blank. Palette ``{category: colour}``
         (default ``enrich.THEME_COLORS`` for the themes, else scanpy's).
+    cluster_labels, cluster_label_chars
+        ``{cluster: text}`` written beside each cluster's number (with `n_clusters`), e.g.
+        ``enrich.cluster_labels(enrich.cluster_enrichment(smide_heatmap_clusters(...), sets, background))``: the
+        clusters' enriched pathways; wrapped at `cluster_label_chars` characters.
 
     Returns
     -------
@@ -454,28 +496,11 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     """
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
-    from scipy.cluster.hierarchy import dendrogram, fcluster, leaves_list, linkage
+    from scipy.cluster.hierarchy import dendrogram
 
-    types, cons = _smide_order(res, celltypes, contrasts)
-    fam = res.assign(family=res["celltype"].astype(str) + " | " + res["contrast"].astype(str))
-    order = [f"{t} | {c}" for t in types for c in cons]
-    sig = fam[(fam["FDR_BH"] < fdr) & fam["family"].isin(order)].sort_values("FDR_BH")
-    top = sig.groupby("family", sort=False).head(n_top)["gene"].unique()
-    if not len(top):
-        raise ValueError(f"no gene with FDR < {fdr}")
-    l2fc = fam.pivot_table(index="gene", columns="family", values="log2FC").reindex(index=top, columns=order)
-    q = fam.pivot_table(index="gene", columns="family", values="FDR_BH").reindex(index=top, columns=order)
-    if clip == "auto":
-        clip = max(0.25, float(np.ceil(np.nanpercentile(np.abs(l2fc.to_numpy()), 90) * 4) / 4))
-    tree = None
-    if len(l2fc) > 2:
-        tree = linkage(l2fc.fillna(0).clip(-clip, clip).to_numpy(), "average", metric="correlation")
-        rows = l2fc.index[leaves_list(tree)]
-        l2fc, q = l2fc.loc[rows], q.loc[rows]
-    clusters = fcluster(tree, n_clusters, "maxclust")[leaves_list(tree)] if (tree is not None and n_clusters) else None
-    if clusters is not None:                                               # numbered top to bottom
-        first = {c: k + 1 for k, c in enumerate(dict.fromkeys(clusters))}
-        clusters = np.array([first[c] for c in clusters])
+    d = _smide_heatmap_data(res, celltypes, contrasts, n_top, fdr, clip, n_clusters)
+    types, cons, order, sig = d["types"], d["cons"], d["order"], d["sig"]
+    l2fc, q, clip, tree, clusters = d["l2fc"], d["q"], d["clip"], d["tree"], d["clusters"]
     ann = None
     if row_annotation is not None:
         ann = pd.Series(row_annotation).reindex(l2fc.index)
@@ -508,7 +533,9 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     xlab_h = max(len(x) for x in xlabels) * col_fs * 0.62 / 72 + 0.3
     cbar_w = 0.5 + fs * 5.5 / 72
     ann_w = col_w * 0.8 if ann is not None else 0.0                       # pathway strip
-    tree_w = (0.35 + fs * 0.05 + (fs * 1.5 / 72 if n_clusters else 0)) if (row_tree and tree is not None) else 0.0
+    num_w = fs * 1.5 / 72 if n_clusters else 0                            # cluster numbers right of the tree
+    lab_w = (cluster_label_chars * fs * 0.85 * 0.55 / 72 + 0.15) if (cluster_labels and n_clusters) else 0
+    tree_w = (0.35 + fs * 0.05 + num_w + lab_w) if (row_tree and tree is not None) else 0.0
     leg_w = (max(len(c) for c in cats) * fs * 0.55 / 72 + 0.4) if ann is not None else 0.0
     x_heat = label_w + ann_w + (0.05 if ann is not None else 0)
     W = x_heat + heat_w + tree_w + max(cbar_w, leg_w) + 0.2
@@ -538,8 +565,8 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
         for side in aax.spines.values():
             side.set_linewidth(0.5)
     if row_tree and tree is not None:
-        tax = fig.add_axes([(x_heat + heat_w + 0.05) / W, xlab_h / H,
-                            (tree_w - 0.1 - (fs * 1.5 / 72 if n_clusters else 0)) / W, rows_h / H])
+        tax = fig.add_axes([(x_heat + heat_w + 0.05) / W, xlab_h / H, (tree_w - 0.1 - num_w - lab_w) / W,
+                            rows_h / H])
         dendrogram(tree, ax=tax, orientation="right", no_labels=True, color_threshold=0,
                    above_threshold_color="0.3")
         tax.set_ylim(10 * len(l2fc), 0)
@@ -549,6 +576,13 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
                 idx = np.flatnonzero(clusters == k)
                 tax.text(max(tax.get_xlim()) * 1.04, 10 * idx.mean() + 5, str(k), fontsize=fs, ha="left",
                          va="center", weight="bold", color="#B2182B", clip_on=False)
+                if cluster_labels and k in cluster_labels:
+                    import textwrap as _tw
+
+                    txt = "\n".join(_tw.wrap(str(cluster_labels[k]), cluster_label_chars))
+                    x_lab = (x_heat + heat_w + tree_w - lab_w) / W
+                    y_lab = (xlab_h + rows_h * (1 - (idx.mean() + 0.5) / len(l2fc))) / H
+                    fig.text(x_lab, y_lab, txt, fontsize=fs * 0.85, va="center", ha="left", color="#B2182B")
     yy, xx = np.nonzero((q < fdr).to_numpy())
     ax.scatter(xx, yy, s=(row_h * 72 * 0.6) ** 2, c="k", marker="*", linewidths=0, zorder=3)
     ax.set_xticks(range(len(order)), xlabels, rotation=90, fontsize=col_fs)

@@ -20,7 +20,7 @@ import pandas as pd
 
 from ._utils import _log
 
-__all__ = ["gene_sets", "smide_gsea", "gene_themes", "THEMES"]
+__all__ = ["gene_sets", "smide_gsea", "gene_themes", "THEMES", "cluster_enrichment", "cluster_labels"]
 
 DEFAULT_LIBRARIES = ("MSigDB_Hallmark_2020", "GO_Biological_Process_2025", "Reactome_Pathways_2024")
 
@@ -156,3 +156,93 @@ def gene_themes(gsea, themes=None, fdr=0.05, celltypes=None, contrasts=None, lib
     cats = list(themes)
     out = pd.Series({gene: cats[int(np.argmax(c))] for gene, c in counts.items()}, name="theme", dtype=object)
     return out.astype(pd.CategoricalDtype(cats))
+
+
+def cluster_enrichment(clusters, sets, background, min_size=5, max_size=500):
+    """Over-representation of gene sets in each gene cluster (hypergeometric test), within a background.
+
+    For annotating clusters of a heatmap (``frzspatial.pl.smide_heatmap_clusters``): a cluster is a short gene list
+    without a ranking, so an over-representation test, against the genes that could have been in the heatmap (e.g.
+    every gene tested in at least one smiDE family: a targeted panel, not the genome).
+
+    Parameters
+    ----------
+    clusters
+        Series gene -> cluster.
+    sets
+        ``{library: {term: [genes]}}`` (``gene_sets``).
+    background
+        The universe of genes (cluster genes outside it are dropped).
+    min_size, max_size
+        Gene sets with fewer / more genes in the background are skipped.
+
+    Returns
+    -------
+    DataFrame
+        One row per cluster x library x gene set with at least one cluster gene: ``overlap`` (cluster genes in the
+        set), ``cluster_size``, ``set_size`` (in the background), ``fold`` (observed / expected), ``pval``, ``fdr`` (BH
+        within the cluster and library, over all tested sets), ``genes``.
+    """
+    from scipy.stats import hypergeom
+
+    from .de import _bh
+
+    bg = set(map(str, background))
+    N = len(bg)
+    cl = pd.Series(clusters).astype(object)
+    cl = cl[cl.index.astype(str).isin(bg)]
+    rows = []
+    for lib, gs in sets.items():
+        terms = {t: set(g) & bg for t, g in gs.items()}
+        terms = {t: g for t, g in terms.items() if min_size <= len(g) <= max_size}
+        for c, genes in cl.groupby(cl).groups.items():
+            members = set(map(str, genes))
+            n = len(members)
+            res = []
+            for t, g in terms.items():
+                k = len(members & g)
+                res.append((t, k, len(g), hypergeom.sf(k - 1, N, len(g), n) if k else 1.0,
+                            ";".join(sorted(members & g))))
+            if not res:
+                continue
+            d = pd.DataFrame(res, columns=["term", "overlap", "set_size", "pval", "genes"])
+            d["fdr"] = _bh(d["pval"].to_numpy(), len(d))
+            d = d[d["overlap"] > 0]
+            d.insert(0, "cluster", c)
+            d.insert(1, "library", lib)
+            d["cluster_size"] = n
+            d["fold"] = d["overlap"] / (n * d["set_size"] / N)
+            rows.append(d)
+    out = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+    return out.sort_values(["cluster", "fdr", "pval"], ignore_index=True) if len(out) else out
+
+
+def cluster_labels(enrichment, n_terms=2, fdr=0.05, libraries=None, max_chars=60, clean=True, nominal_p=0.01,
+                   min_overlap=2):
+    """``{cluster: text}`` naming each cluster by its `n_terms` most significant gene sets (FDR < `fdr`), for
+    ``plot_smide_heatmap(cluster_labels=...)``. A cluster without one is named by its best set if its nominal p is
+    below `nominal_p` (shown as "term (p = ...)", suggestive only), else "n.s."; sets need `min_overlap` cluster
+    genes. `clean` drops GO ids from the names."""
+    import re
+
+    e = enrichment if libraries is None else enrichment[enrichment["library"].isin(libraries)]
+    e = e[e["overlap"] >= min_overlap]
+    out = {}
+    for c in sorted(enrichment["cluster"].unique()):
+        d = e[(e["cluster"] == c) & (e["fdr"] < fdr)].sort_values(["fdr", "pval"])
+        if d.empty and nominal_p:
+            best = e[(e["cluster"] == c) & (e["pval"] < nominal_p)].sort_values("pval").head(1)
+            if len(best):
+                t = re.sub(r"\s*\(GO:\d+\)", "", best["term"].iloc[0]) if clean else best["term"].iloc[0]
+                out[c] = f"{t[:max_chars]} (p = {best['pval'].iloc[0]:.1g})"
+                continue
+        names = []
+        for t in d["term"]:
+            t = re.sub(r"\s*\(GO:\d+\)", "", t) if clean else t
+            t = t if len(t) <= max_chars else t[: max_chars - 1] + "…"
+            if t not in names:
+                names.append(t)
+            if len(names) == n_terms:
+                break
+        out[c] = "; ".join(names) if names else "n.s."
+    return out
