@@ -386,7 +386,7 @@ def _cell_borders(ax, nrow, ncol, color, lw=0.5):
     ax.hlines(np.arange(-0.5, nrow + 0.5, 1), -0.5, ncol - 0.5, colors=color, linewidths=lw, zorder=2)
 
 
-def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto", fdr=0.05, fontsize=11,
+def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto", fdr=0.05, fontsize=11,
                        cell_borders=True, border_color="0.3", figsize=None, title=None):
     """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
 
