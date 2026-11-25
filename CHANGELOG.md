@@ -15,6 +15,8 @@
   the type; above 1, a change may be spillover), and `max_overlap_ratio=` to test only genes below it: on by
   default at 1.5 (smiDE's example cut-off of 1 drops about half of a CosMx 6K panel: broadly expressed genes sit near
   1); `None` turns it off. `de.overlap_ratio` matches smiDE's algorithm exactly (tests).
+- `smide(cells=...)`: restrict the tested cells (e.g. a tissue niche) while the neighbour covariate still counts
+  every cell.
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,

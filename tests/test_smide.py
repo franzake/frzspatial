@@ -206,3 +206,17 @@ def test_smide_overlap_ratio_column_and_screen(sim):
     # the screened genes leave the BH family; the kept genes' fits are unchanged
     m = full.set_index("gene").loc[screened["gene"]]
     assert np.allclose(m["beta"].to_numpy(), screened["beta"].to_numpy())
+
+
+def test_smide_cells_restricts_tested_cells_only(sim):
+    """cells= limits the tested cells; neighbours still come from all cells (so it differs from subsetting)."""
+    kw = dict(contrasts={"G1_vs_N": ("disease", "G1", "N")}, celltypes=["A"], px_um=1, block_cols=("patient",),
+              min_cells=20, n_jobs=1, store=False, max_overlap_ratio=None)
+    keep = sim.obsm["spatial"][:, 1] % 300 < 150          # half of each patient's area
+    r = de.smide(sim, "ct", "~ disease + (1|patient)", cells=keep, **kw)
+    o = sim.obs
+    expect = (keep & (o["ct"] == "A") & o["disease"].isin(["G1", "N"])).sum()
+    assert (r["n_cells"] == expect).all()
+    sub = de.smide(sim[keep].copy(), "ct", "~ disease + (1|patient)", **kw)   # neighbours cut at the border
+    m = r.set_index("gene")["neighbor_beta"].reindex(sub["gene"])
+    assert not np.allclose(m.to_numpy(), sub["neighbor_beta"].to_numpy())

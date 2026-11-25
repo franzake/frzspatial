@@ -381,7 +381,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
           neighbor_agg="sum", neighbor_scale=1e4, neighbor_transform="ranknorm", coords="spatial", px_um=PX_UM,
           min_detection=0.10, min_cells=50, max_cells_per_group=None, contrast_mode="subset", engine="python",
           n_jobs=-1, batch_size=32, checkpoint_dir=None, max_grad=1e-2, seed=0, store=True, rscript_bin=None,
-          max_overlap_ratio=1.5):
+          max_overlap_ratio=1.5, cells=None):
     """smiDE differential expression for every gene in any cell types of a SpatialData object.
 
     One family = one target cell type x one contrast. Per gene, an NB2 count model of the raw counts of the family's
@@ -437,6 +437,10 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         ``"joint"``: one fit per cell type on all levels; every contrast is a linear combination of its coefficients.
     engine
         ``"python"`` (default) or ``"glmmtmb"`` (R; any random-effect terms; see ``check_r()``).
+    cells
+        Restrict the tested cells (every family, and the overlap ratio) to these: an obs column of booleans or a
+        boolean array, e.g. the cells of a tissue niche. The neighbour covariate still counts every cell (spillover
+        also comes from cells just outside the niche). None: all cells.
     max_overlap_ratio
         NanoString smiDE's contamination screen (``overlap_ratio_metric``), on by default: test, in each cell type,
         only the genes whose overlap ratio (mean expression in the type's neighbours of other types / mean in the
@@ -516,7 +520,15 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         _log(f"smide: neighbour graph {A.nnz:,} edges ({'k=' + str(n_neighbors) if n_neighbors else f'{radius_um} µm'}"
              f", blocks {block_cols or 'none'})")
 
-    types = celltypes if celltypes is not None else [t for t in pd.unique(ctype[ok_cell])]
+    if cells is None:
+        in_cells = np.ones(len(obs), bool)
+    else:
+        in_cells = (obs[cells] if isinstance(cells, str) else pd.Series(np.asarray(cells))).fillna(False).to_numpy(bool)
+        if in_cells.size != len(obs):
+            raise ValueError(f"cells: {in_cells.size} values for {len(obs)} cells")
+        _log(f"smide: tested cells restricted to {int(in_cells.sum()):,} of {len(obs):,}"
+             + (f" (obs {cells!r})" if isinstance(cells, str) else ""))
+    types = celltypes if celltypes is not None else [t for t in pd.unique(ctype[ok_cell & in_cells])]
     rng = np.random.default_rng(seed)
     if engine == "glmmtmb":
         chk = check_r(rscript_bin)
@@ -529,7 +541,8 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                   neighbor_scale=neighbor_scale, neighbor_transform=neighbor_transform, px_um=px_um,
                   min_detection=min_detection, min_cells=min_cells, max_cells_per_group=max_cells_per_group,
                   contrast_mode=contrast_mode, engine=engine, max_grad=max_grad, layer=layer, seed=seed,
-                  max_overlap_ratio=max_overlap_ratio)
+                  max_overlap_ratio=max_overlap_ratio,
+                  cells=cells if isinstance(cells, (str, type(None))) else f"{int(in_cells.sum())} cells (array)")
 
     # families: (cell type, fit id, {contrast: spec})
     if contrast_mode == "subset":
@@ -538,7 +551,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         fits = [("joint", cons)]
     results, skipped = [], []
     for T in types:
-        tmask = ok_cell & (ctype == T)
+        tmask = ok_cell & (ctype == T) & in_cells
         if use_nb:
             if neighbor_types == "other":
                 allowed = ok_cell & (ctype != T)
