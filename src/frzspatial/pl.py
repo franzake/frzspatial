@@ -452,7 +452,8 @@ def smide_heatmap_clusters(res, n_clusters, celltypes=None, contrasts=None, n_to
 def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto", fdr=0.05, fontsize=11,
                        cell_borders=True, border_color="0.3", figsize=None, title=None, row_tree=True,
                        n_clusters=None, row_annotation=None, annotation_palette=None, annotation_title="pathway",
-                       cluster_labels=None, cluster_label_chars=38):
+                       cluster_labels=None, cluster_label_chars=38, cluster_label_side="left",
+                       cluster_bar_color="0.15", cluster_label_lines=3):
     """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
 
     Colour: adjusted log2 fold change (red higher in the first group named), on the same blue - white - red scale as
@@ -488,7 +489,11 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     cluster_labels, cluster_label_chars
         ``{cluster: text}`` written beside each cluster's number (with `n_clusters`), e.g.
         ``enrich.cluster_labels(enrich.cluster_enrichment(smide_heatmap_clusters(...), sets, background))``: the
-        clusters' enriched pathways; wrapped at `cluster_label_chars` characters.
+        clusters' enriched pathways; wrapped at `cluster_label_chars` characters (right side).
+    cluster_label_side, cluster_bar_color, cluster_label_lines
+        ``"left"`` (default): each cluster marked by a dark bar left of the gene names (a gap between clusters) and
+        named along it, written vertically ("k · pathways", up to `cluster_label_lines` lines, wrapped to the
+        cluster's height); ``"right"``: beside the cluster numbers right of the tree.
 
     Returns
     -------
@@ -533,11 +538,16 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     xlab_h = max(len(x) for x in xlabels) * col_fs * 0.62 / 72 + 0.3
     cbar_w = 0.5 + fs * 5.5 / 72
     ann_w = col_w * 0.8 if ann is not None else 0.0                       # pathway strip
-    num_w = fs * 1.5 / 72 if n_clusters else 0                            # cluster numbers right of the tree
-    lab_w = (cluster_label_chars * fs * 0.85 * 0.55 / 72 + 0.15) if (cluster_labels and n_clusters) else 0
+    left_labels = bool(cluster_labels) and bool(n_clusters) and cluster_label_side == "left"
+    num_w = fs * 1.5 / 72 if (n_clusters and not left_labels) else 0       # cluster numbers right of the tree
+    lab_w = (cluster_label_chars * fs * 0.85 * 0.55 / 72 + 0.15) if (cluster_labels and n_clusters
+                                                                      and not left_labels) else 0
+    clab_fs = fs * 0.85
+    bar_w = max(0.05, fs * 0.8 / 72)
+    left_w = (cluster_label_lines * clab_fs * 1.3 / 72 + 0.1 + bar_w + 0.06) if left_labels else 0.0
     tree_w = (0.35 + fs * 0.05 + num_w + lab_w) if (row_tree and tree is not None) else 0.0
     leg_w = (max(len(c) for c in cats) * fs * 0.55 / 72 + 0.4) if ann is not None else 0.0
-    x_heat = label_w + ann_w + (0.05 if ann is not None else 0)
+    x_heat = left_w + label_w + ann_w + (0.05 if ann is not None else 0)
     W = x_heat + heat_w + tree_w + max(cbar_w, leg_w) + 0.2
     ttl = title or (f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
                     "label: log2FC in its most significant family)")
@@ -554,7 +564,7 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
                    interpolation="none")
     rows_h = row_h * len(l2fc)                                             # the gene rows, below the header
     if ann is not None:
-        aax = fig.add_axes([label_w / W, xlab_h / H, ann_w / W, rows_h / H])
+        aax = fig.add_axes([(left_w + label_w) / W, xlab_h / H, ann_w / W, rows_h / H])
         code = ann.astype(object).map({c: k for k, c in enumerate(cats)}).to_numpy(dtype=float)
         amap = ListedColormap([annotation_palette[c] for c in cats])
         amap.set_bad("white")
@@ -574,6 +584,8 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
         if clusters is not None:
             for k in np.unique(clusters):
                 idx = np.flatnonzero(clusters == k)
+                if left_labels:
+                    continue
                 tax.text(max(tax.get_xlim()) * 1.04, 10 * idx.mean() + 5, str(k), fontsize=fs, ha="left",
                          va="center", weight="bold", color="#B2182B", clip_on=False)
                 if cluster_labels and k in cluster_labels:
@@ -589,6 +601,32 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     ax.set_yticks(range(len(l2fc)), labels, fontsize=gene_fs)
     if ann is not None:                                                    # gene names left of the pathway strip
         ax.tick_params(axis="y", pad=(ann_w + 0.05) * 72 + 2)
+    if left_labels and clusters is not None:
+        import textwrap as _tw
+        from matplotlib.patches import Rectangle
+
+        # a dark bar per cluster (a gap between clusters), the cluster's name written vertically along it
+        bax = fig.add_axes([(left_w - bar_w - 0.06) / W, xlab_h / H, bar_w / W, rows_h / H])
+        bax.set_xlim(0, 1)
+        bax.set_ylim(len(l2fc) - 0.5, -0.5)
+        bax.set_axis_off()
+        lax = fig.add_axes([0.05 / W, xlab_h / H, (left_w - bar_w - 0.12) / W, rows_h / H])
+        lax.set_xlim(0, 1)
+        lax.set_ylim(len(l2fc) - 0.5, -0.5)
+        lax.set_axis_off()
+        for k in np.unique(clusters):
+            idx = np.flatnonzero(clusters == k)
+            gap = 0.18
+            bax.add_patch(Rectangle((0, idx.min() - 0.5 + gap), 1, len(idx) - 2 * gap, color=cluster_bar_color,
+                                    lw=0))
+            name = str(cluster_labels.get(k, "")) if hasattr(cluster_labels, "get") else ""
+            chars = max(4, int(len(idx) * row_h * 72 / (clab_fs * 0.56)))   # one vertical line fits the cluster
+            lines = _tw.wrap(f"{k} · {name}" if name else str(k), chars)
+            if len(lines) > cluster_label_lines:
+                lines = lines[:cluster_label_lines]
+                lines[-1] = lines[-1][: max(1, chars - 1)].rstrip() + "…"
+            lax.text(0.98, idx.mean(), "\n".join(lines), rotation=90, ha="right", va="center", fontsize=clab_fs,
+                     color=cluster_bar_color, linespacing=1.1, multialignment="center")
     if cell_borders:
         _cell_borders(ax, len(l2fc), len(order), border_color)
     else:
