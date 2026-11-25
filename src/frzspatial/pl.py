@@ -407,7 +407,9 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto"
         Colour limit (|log2FC|): a number, or ``"auto"`` (the 90th percentile of |log2FC| over the cells shown, so a
         few large changes don't wash out the others).
     fontsize
-        Base size of all text (gene and contrast labels; titles, colour bar and cell-type labels scale from it).
+        Base size of all text (gene and contrast labels; title, colour bar and cell-type labels scale from it). The
+        figure is sized from it (rows, columns, margins), so nothing overlaps at any size; its size is logged (in
+        Quarto, set the chunk's fig-width / fig-height to it). `figsize` overrides.
     cell_borders, border_color
         Draw a thin line between every two cells, in this colour.
 
@@ -434,32 +436,55 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto"
                                               metric="correlation"))]
         l2fc, q = l2fc.loc[rows], q.loc[rows]
     best = sig.drop_duplicates("gene").set_index("gene")["log2FC"]   # log2FC in each gene's most significant family
+    import textwrap
+
+    from ._utils import _log
+
+    # layout in inches, every size from fontsize
+    fs = fontsize
+    gene_fs, col_fs, head_fs, title_fs = 0.85 * fs, fs, 1.2 * fs, 1.3 * fs
+    labels = [f"{g} ({best[g]:+.1f})" for g in l2fc.index]
+    xlabels = [o.split(" | ")[1].replace("_vs_", " vs ") for o in order]
+    row_h = gene_fs * 1.55 / 72
+    col_w = max(0.5, fs * 2.4 / 72)
+    axes_h = row_h * (len(l2fc) + 1.3)                                   # genes + the cell-type header
+    heat_w = col_w * len(order)
+    label_w = max(len(x) for x in labels) * gene_fs * 0.6 / 72 + 0.3
+    xlab_h = max(len(x) for x in xlabels) * col_fs * 0.62 / 72 + 0.3
+    cbar_w = 0.9 + fs * 6.5 / 72
+    W = label_w + heat_w + cbar_w + 0.3
+    ttl = title or (f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
+                    "label: log2FC in its most significant family)")
+    ttl = "\n".join(textwrap.wrap(ttl, width=max(30, int(W * 72 / (title_fs * 0.55)))))
+    title_h = (ttl.count("\n") + 1) * title_fs * 1.45 / 72 + 0.3
+    H = title_h + axes_h + xlab_h + 0.2
+    if figsize is not None:
+        W, H = figsize
     cmap = _smide_cmap().copy()
     cmap.set_bad("0.88")
-    fs = fontsize
-    fig, ax = plt.subplots(figsize=figsize or (4.5 + 0.85 * len(order), 3 + 0.032 * fs * len(l2fc)))
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([label_w / W, xlab_h / H, heat_w / W, axes_h / H])
     im = ax.imshow(l2fc.clip(-clip, clip).to_numpy(), cmap=cmap, vmin=-clip, vmax=clip, aspect="auto",
                    interpolation="none")
     yy, xx = np.nonzero((q < fdr).to_numpy())
-    ax.scatter(xx, yy, s=5 * fs, c="k", marker="*", linewidths=0, zorder=3)
-    ax.set_xticks(range(len(order)), [o.split(" | ")[1].replace("_vs_", " vs ") for o in order], rotation=90,
-                  fontsize=fs)
-    ax.set_yticks(range(len(l2fc)), [f"{g} ({best[g]:+.1f})" for g in l2fc.index], fontsize=fs * 0.85)
+    ax.scatter(xx, yy, s=(row_h * 72 * 0.6) ** 2, c="k", marker="*", linewidths=0, zorder=3)
+    ax.set_xticks(range(len(order)), xlabels, rotation=90, fontsize=col_fs)
+    ax.set_yticks(range(len(l2fc)), labels, fontsize=gene_fs)
     if cell_borders:
         _cell_borders(ax, len(l2fc), len(order), border_color)
     else:
         ax.grid(False)
     for k, t in enumerate(types):
-        ax.text(len(cons) * k + (len(cons) - 1) / 2, -1.0, t, ha="center", va="bottom", fontsize=fs * 1.3,
+        ax.text(len(cons) * k + (len(cons) - 1) / 2, -0.8, t, ha="center", va="bottom", fontsize=head_fs,
                 weight="bold")
         if k:
             ax.axvline(len(cons) * k - 0.5, c="k", lw=1.5, zorder=4)
     ax.set_xlim(-0.5, len(order) - 0.5)
-    ax.set_ylim(len(l2fc) - 0.5, -1.6)
-    _sat_colorbar(fig, im, clip, "adjusted log2 fold change", ax=ax, fontsize=fs)
-    ax.set_title(title or f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
-                 "label: log2FC in its most significant family)", fontsize=fs * 1.3, pad=3 * fs)
-    fig.tight_layout()
+    ax.set_ylim(len(l2fc) - 0.5, -1.8)
+    cax = fig.add_axes([(label_w + heat_w + 0.3) / W, xlab_h / H + 0.3 * axes_h / H, 0.22 / W, 0.4 * axes_h / H])
+    _sat_colorbar(fig, im, clip, "adjusted log2 fold change", cax=cax, fontsize=fs)
+    fig.suptitle(ttl, fontsize=title_fs, y=1 - 0.1 / H, va="top")
+    _log(f"plot_smide_heatmap: figure {W:.1f} x {H:.1f} in (in Quarto, set the chunk's fig-width / fig-height to these)")
     return fig
 
 
