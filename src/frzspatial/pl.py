@@ -370,16 +370,24 @@ def _smide_cmap():
     return sns.diverging_palette(250, 12, s=90, l=42, sep=8, as_cmap=True)
 
 
-def _sat_colorbar(fig, im, lim, label, cax=None, ax=None):
+def _sat_colorbar(fig, im, lim, label, cax=None, ax=None, fontsize=12):
     """Colour bar with saturated ends labelled <= -lim and >= lim."""
     cb = fig.colorbar(im, cax=cax, ax=ax, ticks=[-lim, -lim / 2, 0, lim / 2, lim],
                       **({} if cax is not None else dict(fraction=0.03, pad=0.02)))
-    cb.ax.set_yticklabels([f"<= -{lim:g}", f"{-lim / 2:g}", "0", f"{lim / 2:g}", f">= {lim:g}"], fontsize=12)
-    cb.set_label(label, fontsize=14)
+    cb.ax.set_yticklabels([f"<= -{lim:g}", f"{-lim / 2:g}", "0", f"{lim / 2:g}", f">= {lim:g}"], fontsize=fontsize)
+    cb.set_label(label, fontsize=fontsize * 1.15)
     return cb
 
 
-def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto", fdr=0.05, figsize=None, title=None):
+def _cell_borders(ax, nrow, ncol, color, lw=0.5):
+    """A thin line between every two cells of an imshow heatmap, inside the heatmap only (not over its headers)."""
+    ax.grid(False)
+    ax.vlines(np.arange(-0.5, ncol + 0.5, 1), -0.5, nrow - 0.5, colors=color, linewidths=lw, zorder=2)
+    ax.hlines(np.arange(-0.5, nrow + 0.5, 1), -0.5, ncol - 0.5, colors=color, linewidths=lw, zorder=2)
+
+
+def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto", fdr=0.05, fontsize=11,
+                       cell_borders=True, border_color="0.3", figsize=None, title=None):
     """Overview of a ``frzspatial.de.smide`` run: each family's top genes x all families (cell type x contrast).
 
     Colour: adjusted log2 fold change (red higher in the first group named), on the same blue - white - red scale as
@@ -398,6 +406,10 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto"
     clip
         Colour limit (|log2FC|): a number, or ``"auto"`` (the 90th percentile of |log2FC| over the cells shown, so a
         few large changes don't wash out the others).
+    fontsize
+        Base size of all text (gene and contrast labels; titles, colour bar and cell-type labels scale from it).
+    cell_borders, border_color
+        Draw a thin line between every two cells, in this colour.
 
     Returns
     -------
@@ -424,30 +436,37 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=8, clip="auto"
     best = sig.drop_duplicates("gene").set_index("gene")["log2FC"]   # log2FC in each gene's most significant family
     cmap = _smide_cmap().copy()
     cmap.set_bad("0.88")
-    fig, ax = plt.subplots(figsize=figsize or (4.5 + 0.85 * len(order), 3 + 0.32 * len(l2fc)))
+    fs = fontsize
+    fig, ax = plt.subplots(figsize=figsize or (4.5 + 0.85 * len(order), 3 + 0.032 * fs * len(l2fc)))
     im = ax.imshow(l2fc.clip(-clip, clip).to_numpy(), cmap=cmap, vmin=-clip, vmax=clip, aspect="auto",
                    interpolation="none")
     yy, xx = np.nonzero((q < fdr).to_numpy())
-    ax.scatter(xx, yy, s=55, c="k", marker="*", linewidths=0)
+    ax.scatter(xx, yy, s=5 * fs, c="k", marker="*", linewidths=0, zorder=3)
     ax.set_xticks(range(len(order)), [o.split(" | ")[1].replace("_vs_", " vs ") for o in order], rotation=90,
-                  fontsize=11)
-    ax.set_yticks(range(len(l2fc)), [f"{g} ({best[g]:+.1f})" for g in l2fc.index], fontsize=9)
+                  fontsize=fs)
+    ax.set_yticks(range(len(l2fc)), [f"{g} ({best[g]:+.1f})" for g in l2fc.index], fontsize=fs * 0.85)
+    if cell_borders:
+        _cell_borders(ax, len(l2fc), len(order), border_color)
+    else:
+        ax.grid(False)
     for k, t in enumerate(types):
-        ax.text(len(cons) * k + (len(cons) - 1) / 2, -1.0, t, ha="center", va="bottom", fontsize=14, weight="bold")
+        ax.text(len(cons) * k + (len(cons) - 1) / 2, -1.0, t, ha="center", va="bottom", fontsize=fs * 1.3,
+                weight="bold")
         if k:
-            ax.axvline(len(cons) * k - 0.5, c="k", lw=1.5)
+            ax.axvline(len(cons) * k - 0.5, c="k", lw=1.5, zorder=4)
+    ax.set_xlim(-0.5, len(order) - 0.5)
     ax.set_ylim(len(l2fc) - 0.5, -1.6)
-    ax.grid(False)
-    _sat_colorbar(fig, im, clip, "adjusted log2 fold change", ax=ax)
+    _sat_colorbar(fig, im, clip, "adjusted log2 fold change", ax=ax, fontsize=fs)
     ax.set_title(title or f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
-                 "label: log2FC in its most significant family)", fontsize=14, pad=34)
+                 "label: log2FC in its most significant family)", fontsize=fs * 1.3, pad=3 * fs)
     fig.tight_layout()
     return fig
 
 
 def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_col="sample_id", celltypes=None,
                         cells=None, n_genes=24, min_cells=10, layer="counts", groups=None, palette=None, z_lim=2,
-                        cluster=True, column_labels=None, table="table", title=None):
+                        cluster=True, column_labels=None, fontsize=13, cell_borders=True, border_color="0.3",
+                        table="table", title=None):
     """The top genes of one ``smide`` contrast at the level of the patients: one heatmap per cell type.
 
     Each column is one patient's pseudobulk of the cell type (sum of raw counts over its cells, log CPM), each row a
@@ -478,11 +497,17 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     column_labels
         obs column whose value labels each patient's column (e.g. ``"slide"``). None (default): no labels, since
         patient ids can be identifiers.
+    fontsize
+        Base size of all text (gene labels; panel titles, legend, colour bar and figure title scale from it). Gene
+        labels shrink further when many genes would not fit.
+    cell_borders, border_color
+        Draw a thin line between every two cells, in this colour.
 
     Returns
     -------
     Figure
-        Its height grows with `n_genes` (8 + 0.6 x n_genes inches; in Quarto set the chunk's fig-height to match).
+        Its height grows with `n_genes` (two panel rows: about 8 + 0.58 x n_genes inches; in Quarto set the chunk's
+        fig-height to ``fig.get_size_inches()[1]``).
     """
     import matplotlib.pyplot as plt
     import scipy.sparse as sp
@@ -511,11 +536,16 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     keep_cells = _cell_mask(obs, cells) & obs[group_col].astype(str).isin(groups).to_numpy() \
         & obs[patient_col].notna().to_numpy()
     cmap = _smide_cmap()
-    fig_h = 8 + 0.6 * n_genes
     ncol = 2 if len(types) > 1 else 1
     nrow = int(np.ceil(len(types) / ncol))
-    fig, axes = plt.subplots(nrow, ncol, figsize=(15 * ncol, fig_h * nrow / 2), squeeze=False)
-    label_size = min(13, 520 / n_genes)
+    # layout in inches: each panel row = its heatmap, with its trees, title and column labels around it
+    heat_h = max(3.5, 0.25 * n_genes + 1.2)
+    tree_h = 0.16 * heat_h
+    top_h, gap_h, bot_h = 1.6 + tree_h + 0.8, tree_h + 1.8, 1.2
+    fig_h = top_h + nrow * heat_h + (nrow - 1) * gap_h + bot_h
+    fig, axes = plt.subplots(nrow, ncol, figsize=(15 * ncol, fig_h), squeeze=False)
+    fs = fontsize
+    label_size = min(fs, 520 / n_genes)
     im, plotted = None, set()
     for ax, t in zip(axes.ravel(), types):
         r = r_all[r_all["celltype"] == t]
@@ -553,29 +583,35 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
         ax.set_yticks(range(len(top)), [f"{gname} ({l:+.1f}){' *' if q < 0.05 else ''}" for gname, l, q
                                         in zip(top["gene"], top["log2FC"], top["FDR_BH"])], fontsize=label_size)
         if column_labels:
-            ax.set_xticks(range(len(pats)), pats[column_labels].astype(str), rotation=90, fontsize=9)
+            ax.set_xticks(range(len(pats)), pats[column_labels].astype(str), rotation=90, fontsize=fs * 0.7)
         else:
             ax.set_xticks([])
         for e in edges[:-1]:
-            ax.axvline(e, c="k", lw=2)
+            ax.axvline(e, c="k", lw=2, zorder=4)
         for start, k, tree in trees:
             dax = ax.inset_axes([start - 0.5, 1.0, k, 0.16], transform=blended_transform_factory(ax.transData, ax.transAxes))
             dendrogram(tree, ax=dax, no_labels=True, color_threshold=0, above_threshold_color="0.25")
             dax.set_xlim(0, 10 * k)
             dax.set_axis_off()
+        if cell_borders:
+            _cell_borders(ax, len(top), len(pats), border_color)
+        else:
+            ax.grid(False)
+        ax.set_xlim(-0.5, len(pats) - 0.5)
         ax.set_ylim(len(top) - 0.5, -1.8)
-        ax.grid(False)
-        ax.set_title(f"{t}: {len(pats)} patients (>= {min_cells} cells), top {len(top)} genes", fontsize=18, pad=95)
+        ax.set_title(f"{t}: {len(pats)} patients (>= {min_cells} cells), top {len(top)} genes", fontsize=fs * 1.4,
+                     pad=(tree_h + 0.15) * 72)
     for ax in axes.ravel()[len(types):]:
         ax.set_axis_off()
     H = fig.get_size_inches()[1]
-    fig.subplots_adjust(left=0.07, right=0.92, bottom=1.6 / H, top=1 - 5.0 / H, hspace=0.3, wspace=0.22)
+    fig.subplots_adjust(left=0.07, right=0.92, bottom=bot_h / H, top=1 - top_h / H, wspace=0.22,
+                        hspace=gap_h / heat_h)
     cax = fig.add_axes([0.94, 0.35, 0.01, 0.3])
-    _sat_colorbar(fig, im, z_lim, "robust z-score across patients\n(log CPM, median / MAD)", cax=cax)
+    _sat_colorbar(fig, im, z_lim, "robust z-score across patients\n(log CPM, median / MAD)", cax=cax, fontsize=fs)
     shown = [g for g in groups if g in plotted]   # groups with at least one patient column
     handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in shown]
-    fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=18, frameon=False,
+    fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=fs * 1.4, frameon=False,
                bbox_to_anchor=(0.5, 1 - 1.0 / H))
     fig.suptitle(title or f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM, "
-                 "patients clustered within each group; label: log2FC, * FDR < 0.05)", fontsize=22, y=1 - 0.3 / H)
+                 "patients clustered within each group; label: log2FC, * FDR < 0.05)", fontsize=fs * 1.7, y=1 - 0.3 / H)
     return fig
