@@ -12,7 +12,8 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 from .core import coordinate_system, core_box
 
 __all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano", "plot_smide_heatmap",
-           "plot_smide_patients", "plot_group_proportions", "plot_group_values", "plot_radial_position"]
+           "plot_smide_patients", "plot_group_proportions", "plot_group_values", "plot_radial_position",
+           "plot_gsea_dotplot", "plot_gsea_bars"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -964,4 +965,167 @@ def plot_radial_position(obs, celltype_col, dist_col="ng_dist", celltypes=None, 
         ax.spines[side].set_visible(False)
     ax.grid(False)
     fig.tight_layout(pad=0.3)
+    return fig
+
+
+def _short(term, n):
+    term = str(term)
+    return term if len(term) <= n else term[: n - 1].rstrip() + "…"
+
+
+def plot_gsea_dotplot(gsea, library, celltypes=None, contrasts=None, n_top=5, fdr=0.05, clip="auto", max_chars=55,
+                      fontsize=11, title=None):
+    """Gene set enrichment across DE families: gene sets (rows) x families (cell type x contrast, columns).
+
+    Rows: the union of each family's `n_top` gene sets with FDR < `fdr` (smallest FDR first) in `library`, ordered by
+    hierarchical clustering of their NES profiles. Dot colour: NES (red = enriched among genes higher in the first group
+    named), on the smide heatmaps' blue - white - red scale, saturated beyond `clip`; dot size: -log10 FDR; a dot with a
+    black edge is FDR < `fdr`; no dot: the set was not tested in that family (too few of its genes ranked).
+
+    Parameters
+    ----------
+    gsea
+        ``frzspatial.enrich.smide_gsea``'s table.
+    library
+        The gene set library shown (e.g. ``"MSigDB_Hallmark_2020"``).
+    clip
+        |NES| colour limit: a number, or ``"auto"`` (the 95th percentile of |NES| shown, at least 1.5).
+    max_chars
+        Longer gene set names are shortened.
+
+    Returns
+    -------
+    Figure
+    """
+    import textwrap
+
+    import matplotlib.pyplot as plt
+    from scipy.cluster.hierarchy import leaves_list, linkage
+
+    from ._utils import _log
+
+    g = gsea[gsea["library"] == library].copy()
+    if g.empty:
+        raise ValueError(f"no results for library {library!r}")
+    types = list(celltypes) if celltypes is not None else list(dict.fromkeys(g["celltype"]))
+    cons = list(contrasts) if contrasts is not None else list(dict.fromkeys(g["contrast"]))
+    g["family"] = g["celltype"].astype(str) + " | " + g["contrast"].astype(str)
+    order = [f"{t} | {c}" for t in types for c in cons]
+    sig = g[(g["fdr"] < fdr) & g["family"].isin(order)].sort_values(["fdr", "pval"])
+    terms = sig.groupby("family", sort=False).head(n_top)["term"].unique()
+    if not len(terms):
+        raise ValueError(f"no gene set with FDR < {fdr} in {library}")
+    nes = g.pivot_table(index="term", columns="family", values="nes").reindex(index=terms, columns=order)
+    q = g.pivot_table(index="term", columns="family", values="fdr").reindex(index=terms, columns=order)
+    if len(nes) > 2:
+        rows = nes.index[leaves_list(linkage(nes.fillna(0).to_numpy(), "average", metric="euclidean"))]
+        nes, q = nes.loc[rows], q.loc[rows]
+    if clip == "auto":
+        clip = max(1.5, float(np.ceil(np.nanpercentile(np.abs(nes.to_numpy()), 95) * 2) / 2))
+    fs = fontsize
+    labels = [_short(t, max_chars) for t in nes.index]
+    row_h = fs * 1.5 / 72
+    head_w = max(len(t) for t in types) * 1.1 * fs * 0.62 / 72 + 0.1   # bold cell-type header over its columns
+    col_w = max(fs * 2.0 / 72, head_w / len(cons))
+    axes_h, heat_w = row_h * (len(nes) + 1.3), col_w * len(order)
+    label_w = max(len(x) for x in labels) * fs * 0.55 / 72 + 0.2
+    xlab_h = max(len(o.split(" | ")[1]) for o in order) * fs * 0.6 / 72 + 0.3
+    legend_w = 0.6 + fs * 9 / 72
+    W = label_w + heat_w + legend_w
+    ttl = title or f"{library}: top {n_top} gene sets per family (FDR < {fdr}; edge: significant)"
+    ttl = "\n".join(textwrap.wrap(ttl, width=max(30, int(W * 72 / (1.2 * fs * 0.55)))))
+    title_h = (ttl.count("\n") + 1) * 1.2 * fs * 1.45 / 72 + 0.25
+    H = title_h + axes_h + xlab_h + 0.2
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([label_w / W, xlab_h / H, heat_w / W, axes_h / H])
+    yy, xx = np.meshgrid(range(len(nes)), range(len(order)), indexing="ij")
+    v, qq = nes.to_numpy(), q.to_numpy()
+    ok = np.isfinite(v)
+    smax = (min(row_h, col_w) * 72 * 0.95) ** 2
+    size = np.clip(-np.log10(np.clip(qq, 1e-10, 1)), 0, 4) / 4 * smax * 0.85 + smax * 0.15
+    im = ax.scatter(xx[ok], yy[ok], c=np.clip(v[ok], -clip, clip), s=size[ok], cmap=_smide_cmap(), vmin=-clip,
+                    vmax=clip, edgecolors=np.where(qq[ok] < fdr, "k", "none"), linewidths=0.6, zorder=3)
+    ax.set_xticks(range(len(order)), [o.split(" | ")[1].replace("_vs_", " vs ") for o in order], rotation=90,
+                  fontsize=fs)
+    ax.set_yticks(range(len(nes)), labels, fontsize=fs)
+    _cell_borders(ax, len(nes), len(order), "0.85", lw=0.4)
+    for k, t in enumerate(types):
+        ax.text(len(cons) * k + (len(cons) - 1) / 2, -0.8, t, ha="center", va="bottom", fontsize=1.1 * fs,
+                weight="bold")
+        if k:
+            ax.axvline(len(cons) * k - 0.5, c="k", lw=1.2, zorder=4)
+    ax.set_xlim(-0.5, len(order) - 0.5)
+    ax.set_ylim(len(nes) - 0.5, -1.8)
+    # colour bar and size legend
+    x0 = (label_w + heat_w + 0.3) / W
+    cax = fig.add_axes([x0, xlab_h / H + 0.55 * axes_h / H, 0.18 / W, 0.35 * axes_h / H])
+    _sat_colorbar(fig, im, clip, "NES", cax=cax, fontsize=fs)
+    for k, (qv, lab) in enumerate([(0.05, "0.05"), (1e-2, "0.01"), (1e-4, "1e-4")]):
+        s = np.clip(-np.log10(qv), 0, 4) / 4 * smax * 0.85 + smax * 0.15
+        ax_l = fig.add_axes([x0, xlab_h / H + (0.4 - 0.1 * k) * axes_h / H, 0.3 / W, 0.08 * axes_h / H])
+        ax_l.scatter([0.5], [0.5], s=s, c="0.5", edgecolors="k", linewidths=0.6)
+        ax_l.text(1.6, 0.5, f"FDR {lab}", va="center", fontsize=fs)
+        ax_l.set_xlim(0, 1); ax_l.set_ylim(0, 1); ax_l.set_axis_off()
+    fig.suptitle(ttl, fontsize=1.2 * fs, y=1 - 0.08 / H, va="top")
+    _log(f"plot_gsea_dotplot: figure {W:.1f} x {H:.1f} in (in Quarto, set the chunk's fig-width / fig-height to these)")
+    return fig
+
+
+def plot_gsea_bars(gsea, celltype, contrast, libraries=None, n_top=8, fdr=0.05, max_chars=60, fontsize=11,
+                   title=None):
+    """The top enriched gene sets of one DE family: NES bars (red: higher in the first group named), FDR on the right,
+    one block per library, the `n_top` sets with the smallest FDR of each (only FDR < `fdr`).
+
+    Returns
+    -------
+    Figure
+    """
+    import matplotlib.pyplot as plt
+
+    g = gsea[(gsea["celltype"] == celltype) & (gsea["contrast"] == contrast) & (gsea["fdr"] < fdr)]
+    libs = list(libraries) if libraries is not None else list(dict.fromkeys(g["library"]))
+    blocks = [(lib, g[g["library"] == lib].sort_values(["fdr", "pval"]).head(n_top).sort_values("nes"))
+              for lib in libs]
+    blocks = [(lib, b) for lib, b in blocks if len(b)]
+    if not blocks:
+        raise ValueError(f"no gene set with FDR < {fdr} for {celltype} / {contrast}")
+    fs = fontsize
+    n = sum(len(b) for _, b in blocks) + len(blocks)
+    labels = [_short(t, max_chars) for _, b in blocks for t in b["term"]]
+    label_w = max(len(x) for x in labels) * fs * 0.55 / 72 + 0.2
+    W, H = label_w + 3.0, n * fs * 1.6 / 72 + 1.1
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([label_w / W, 0.6 / H, 2.3 / W, (H - 0.9) / H])
+    y, ticks, ylabels, heads = 0, [], [], []
+    shown = pd.concat([b for _, b in blocks])
+    lo = min(0.0, float(shown["nes"].min())) * 1.1
+    hi = max(0.0, float(shown["nes"].max())) * 1.1
+    lo, hi = (lo, hi + 0.3) if lo == 0 else (lo - 0.3, hi) if hi == 0 else (lo, hi)
+    for lib, b in blocks:
+        ticks.append(y)
+        ylabels.append(lib.replace("_", " "))
+        heads.append(len(ticks) - 1)
+        y += 1
+        for _, r in b.iterrows():
+            ax.barh(y, r["nes"], color="#c0392b" if r["nes"] > 0 else "#2a6fbb", height=0.7)
+            ax.text(hi + (hi - lo) * 0.03, y, f"{r['fdr']:.1g}" if r["fdr"] > 0 else "<0.001", fontsize=fs * 0.9,
+                    va="center")
+            ticks.append(y)
+            ylabels.append(_short(r["term"], max_chars))
+            y += 1
+    ax.set_yticks(ticks, ylabels, fontsize=fs)
+    for k in heads:
+        ax.get_yticklabels()[k].set_fontweight("bold")
+    ax.tick_params(axis="y", length=0)
+    ax.set_ylim(y - 0.4, -0.6)
+    ax.set_xlim(lo, hi)
+    ax.axvline(0, c="k", lw=0.6)
+    ax.set_xlabel("NES", fontsize=fs)
+    ax.tick_params(axis="x", labelsize=fs * 0.9)
+    ax.text(hi + (hi - lo) * 0.03, -0.9, "FDR", fontsize=fs * 0.9, weight="bold", va="center")
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.grid(False)
+    fig.suptitle(title or f"{celltype}: {contrast.replace('_vs_', ' vs ')}", fontsize=1.15 * fs, y=1 - 0.05 / H,
+                 va="top")
     return fig

@@ -43,6 +43,7 @@ dependencies = [
     "formulaic",  # fixed-effect design matrices from formulas
     "joblib",  # parallel gene fits
     "threadpoolctl",  # one BLAS thread per worker
+    "gseapy",  # preranked GSEA and Enrichr gene set libraries (frzspatial.enrich)
     # Intel Macs: numba 0.62 / llvmlite 0.45 are the last with x86_64 macOS wheels (Python <= 3.13); newer ones fail
     # to build
     "numba<0.63; sys_platform == 'darwin' and platform_machine == 'x86_64'",

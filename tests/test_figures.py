@@ -46,3 +46,26 @@ def test_group_values_and_radial():
     fig = plot_radial_position(obs, "ct", dist_col="dist", cells="glom")
     labels = [t.get_text().split(" (")[0] for t in fig.axes[0].texts]
     assert labels[0] == "M"   # the most central type on top
+
+
+def test_smide_gsea_and_plots():
+    """A planted set (genes ranked at the top of one family) is found; the plots draw."""
+    from frzspatial.enrich import smide_gsea
+    from frzspatial.pl import plot_gsea_bars, plot_gsea_dotplot
+
+    rng = np.random.default_rng(0)
+    genes = [f"g{i}" for i in range(400)]
+    rows = []
+    for t in ["A", "B"]:
+        z = rng.normal(size=400)
+        if t == "A":
+            z[:25] += 3   # set "up" enriched in A only
+        rows.append(pd.DataFrame({"celltype": t, "contrast": "X_vs_Y", "gene": genes, "z": z, "valid": True}))
+    res = pd.concat(rows, ignore_index=True)
+    sets = {"lib": {"up": genes[:25], "rand1": genes[100:140], "rand2": genes[200:230]}}
+    g = smide_gsea(res, sets, min_size=10, permutations=200, threads=1)
+    a = g[(g["celltype"] == "A") & (g["term"] == "up")].iloc[0]
+    b = g[(g["celltype"] == "B") & (g["term"] == "up")].iloc[0]
+    assert a["nes"] > 1.5 and a["fdr"] < 0.05 and b["fdr"] > 0.05 and a["size"] == 25
+    assert plot_gsea_dotplot(g, "lib", n_top=3).axes
+    assert plot_gsea_bars(g, "A", "X_vs_Y").axes

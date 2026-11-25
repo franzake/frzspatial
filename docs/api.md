@@ -32,6 +32,10 @@
     options:
       members: [smide, neighbor_graph, neighbor_expression, overlap_ratio, ranknorm, check_r]
 
+## Gene set enrichment
+
+::: frzspatial.enrich
+
 ## DeSpotX
 
 ::: frzspatial.despotx
