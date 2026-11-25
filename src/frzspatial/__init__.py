@@ -11,9 +11,10 @@ frzspatial.rtools     insitutype, fastreseg_inputs, load_fastreseg, apply_reseg,
                       marker_heatmap, structure_zones: R tools run from Python
 frzspatial.despotx    despotx_input, apply_despotx: DeSpotX decontamination input and result
 frzspatial.he         align_he_cores: post-CosMx H&E, one aligned crop per core
-frzspatial.pl         plot_core, plot_umap, plot_composition
+frzspatial.de         smide: spatial differential expression (count mixed models + neighbour covariate)
+frzspatial.pl         plot_core, plot_umap, plot_composition, plot_smide_volcano
 
-The functions of io, core, qc, tma and despotx are also available at the top level, e.g. ``frzspatial.load_slides``.
+The functions of io, core, qc, tma, despotx and ``de.smide`` are also available at the top level, e.g. ``frzspatial.load_slides``.
 ``pl`` is imported on demand, since it is slow to import.
 
 Use ``help(frzspatial.load_slides)`` (or any function) for its documentation.
@@ -25,7 +26,8 @@ from ._utils import PX_UM
 from .core import coordinate_system, core_box
 from .qc import compute_sbr, fov_integrity, panel_barcodes, plot_qc, plot_qc_flags, qc_flags
 from .tma import add_clinical, assign_cores, cases, key_matrix, plot_core_grid
-from . import he, reference, rtools
+from . import de, he, reference, rtools
+from .de import smide
 from .despotx import apply_despotx, despotx_input
 from .io import add_slide_view, build_sdata, drop_cells, load_slides, merge_slides
 
@@ -47,6 +49,7 @@ __all__ = [
     "compute_sbr",
     "coordinate_system",
     "core_box",
+    "de",
     "despotx_input",
     "fov_integrity",
     "key_matrix",
@@ -61,4 +64,5 @@ __all__ = [
     "qc_flags",
     "reference",
     "rtools",
+    "smide",
 ]

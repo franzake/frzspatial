@@ -11,7 +11,7 @@ import spatialdata_plot  # noqa: F401  (adds .pl to SpatialData objects)
 
 from .core import coordinate_system, core_box
 
-__all__ = ["plot_core", "plot_composition", "plot_umap"]
+__all__ = ["plot_core", "plot_composition", "plot_umap", "plot_smide_volcano"]
 
 
 def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, core_key="core_str", slide=None,
@@ -302,3 +302,55 @@ def plot_umap(table, color, palette=None, labels=True, legend=False, title="", s
     return ax
 
 
+
+
+def plot_smide_volcano(res, celltype, contrast, fdr=0.05, y="FDR_BH", n_labels=12, title=None, figsize=(9, 8),
+                       fontsize=12, ax=None):
+    """Volcano plot of one ``frzspatial.de.smide`` family: log2 fold change against -log10 `y`.
+
+    Parameters
+    ----------
+    res
+        The DataFrame returned by ``smide`` (or ``table.uns["smide"]["results"]``).
+    celltype, contrast
+        The family.
+    fdr
+        Threshold on ``FDR_BH`` that colours the genes (higher in case: red, lower: blue).
+    y
+        ``"FDR_BH"`` (default) or ``"p_for_inference"`` (nominal p) on the y axis.
+    n_labels
+        The genes with the smallest FDR that get a name.
+
+    Returns
+    -------
+    Axes
+    """
+    import matplotlib.patheffects as pe
+    import matplotlib.pyplot as plt
+
+    d = res[(res["celltype"] == celltype) & (res["contrast"] == contrast) & res["valid"]].copy()
+    if d.empty:
+        raise ValueError(f"no valid fits for {celltype!r} / {contrast!r}")
+    d["_y"] = -np.log10(d[y].clip(lower=1e-300))
+    sig = d["FDR_BH"] < fdr
+    up, down = sig & (d["beta"] > 0), sig & (d["beta"] < 0)
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize)
+    ax.scatter(d.loc[~sig, "log2FC"], d.loc[~sig, "_y"], s=8, c="0.75", lw=0, label=f"FDR >= {fdr}")
+    case, ref = d["case"].iloc[0], d["reference"].iloc[0]
+    hi = f"higher in {case}" if isinstance(case, str) else "positive"
+    lo = f"higher in {ref}" if isinstance(ref, str) else "negative"
+    ax.scatter(d.loc[up, "log2FC"], d.loc[up, "_y"], s=14, c="#c0392b", lw=0, label=f"{hi} ({int(up.sum())})")
+    ax.scatter(d.loc[down, "log2FC"], d.loc[down, "_y"], s=14, c="#2a6fbb", lw=0, label=f"{lo} ({int(down.sum())})")
+    ax.axvline(0, c="0.6", lw=0.8)
+    if y == "FDR_BH":
+        ax.axhline(-np.log10(fdr), c="0.6", lw=0.8, ls="--")
+    for _, r in d[sig].nsmallest(n_labels, "FDR_BH").iterrows():
+        ax.annotate(r["gene"], (r["log2FC"], r["_y"]), xytext=(3, 3), textcoords="offset points",
+                    fontsize=fontsize - 2, path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+    ax.set_xlabel(f"adjusted log2 fold change ({case} vs {ref})" if isinstance(case, str) else "coefficient / log(2)",
+                  fontsize=fontsize)
+    ax.set_ylabel("-log10 FDR (BH)" if y == "FDR_BH" else "-log10 p", fontsize=fontsize)
+    ax.set_title(title or f"smiDE: {celltype}, {contrast} ({len(d)} valid genes)", fontsize=fontsize + 2)
+    ax.legend(frameon=False, fontsize=fontsize - 2)
+    return ax

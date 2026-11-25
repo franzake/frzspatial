@@ -26,6 +26,12 @@
 
 ::: frzspatial.rtools
 
+## Spatial differential expression (smiDE)
+
+::: frzspatial.de
+    options:
+      members: [smide, neighbor_graph, neighbor_expression, ranknorm, check_r]
+
 ## DeSpotX
 
 ::: frzspatial.despotx

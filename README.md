@@ -14,6 +14,9 @@ several slides merged into one object (with `slide=`), and change it in place.
 - **R tools** (`frzspatial.rtools`): InSituType, FastReseg inputs and results, scPearsonPCA, HieraType markers and
   heatmap, SpNeigh structures. Reference profiles from an atlas (`frzspatial.reference`).
 - **DeSpotX** decontamination input and result (`despotx_input`, `apply_despotx`).
+- **Spatial differential expression** (`smide`): smiDE count mixed models per cell type and gene, adjusted for the
+  same gene's expression in neighbouring cells of other types; any cell-type column, formula and contrasts; pure
+  Python and parallel (optional glmmTMB engine in R); `pl.plot_smide_volcano`.
 - **H&E**: the post-CosMx H&E added as one image per TMA core, aligned to that core's cells from tissue shape and
   stored as a spatialdata transformation (`frzspatial.he.align_he_cores`); `plot_core(..., image="he_")` shows it.
 - **Plots** (`frzspatial.pl`): one core with its outlines, transcripts or any obs column (`plot_core`), UMAPs
@@ -68,6 +71,15 @@ plot_core(usc, "C4R7", slide="MN2", color="sample_id", image=False, legend_outsi
 ```
 
 `plot_core` also takes a Series as `color` (e.g. a column masked with `.where(...)`; the other cells are grey).
+
+Spatial differential expression (smiDE) in any cell type, here PLA2R vs normal with a patient random intercept:
+
+```python
+res = fs.smide(usc, "celltypes_dx", "~ disease + slide + (1|patient)",
+               contrasts={"PLA2R_vs_Normal": ("disease", "PLA2R", "Normal")},
+               celltypes=["Podocytes", "Mesangial"], radius_um=30, n_jobs=16, checkpoint_dir="smide_ck")
+res[res.FDR_BH < 0.05]                      # beta = adjusted log rate ratio, log2FC = beta / log(2)
+```
 
 ## Help
 

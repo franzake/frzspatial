@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `frzspatial.smide` (`frzspatial.de`): smiDE spatial differential expression on any SpatialData table, any cell-type
+  column and any design. Per target cell type and gene, an NB2 count mixed model of the raw counts with the cell's
+  total count as offset, the formula's fixed effects and a random intercept, and the RankNorm-transformed expression
+  of the same gene in neighbouring cells of other types (radius or k nearest, within blocks); Wald contrasts, BH per
+  family counting failed fits. Defaults reproduce the CHARU MN glomerular smiDE analysis (V. Charu, 2026-10). The
+  default engine is pure Python (Laplace-approximated ML as in glmmTMB, `frzspatial._nbglmm`), parallel with
+  checkpoints; `engine="glmmtmb"` runs glmmTMB in R (`R/smide.R`). New dependencies: formulaic, joblib,
+  threadpoolctl. `pl.plot_smide_volcano`.
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,
