@@ -489,17 +489,17 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
 
 
 def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_col="sample_id", celltypes=None,
-                        cells=None, n_genes=24, min_cells=10, layer="counts", groups=None, palette=None, z_lim=2,
-                        cluster="all", column_labels=None, fontsize=13, cell_borders=True, border_color="0.3",
+                        cells=None, n_genes=50, min_cells=10, layer="counts", groups=None, palette=None, z_lim=2,
+                        cluster="within", column_labels=None, fontsize=13, cell_borders=True, border_color="0.3",
                         table="table", title=None):
     """The top genes of one ``smide`` contrast at the level of the patients: one heatmap per cell type.
 
     Each column is one patient's pseudobulk of the cell type (sum of raw counts over its cells, log CPM), each row a
     gene (the `n_genes` smallest p of `contrast` in that type, ordered by fold change; label: log2FC and * when
     FDR < 0.05). Values are robust z-scores per gene across patients (median / MAD), so a few extreme patients don't
-    flatten the others' contrast. Patients are ordered by hierarchical clustering (average linkage, Euclidean) of
-    their gene profiles, the tree drawn above, and coloured by `group_col` in the strip: if the groups separate without
-    being told apart, the contrast's signal is carried by most patients.
+    flatten the others' contrast. Patients are grouped by `group_col` and ordered within each group by hierarchical
+    clustering (average linkage, Euclidean) of their gene profiles, each group's tree drawn above it: an effect carried
+    by most patients of a group reads as one block, subgroups or outlier patients separate within it.
 
     Parameters
     ----------
@@ -520,8 +520,9 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     z_lim
         Colour limit of the robust z-scores.
     cluster
-        ``"all"`` (default): one tree over all patients; ``"within"``: patients clustered within each group, one tree
-        per group, groups side by side; None: patients by group, unclustered.
+        ``"within"`` (default): patients clustered within each group, one tree per group, groups side by side;
+        ``"all"``: one tree over all patients (the group strip shows who is who); None: patients by group,
+        unclustered.
     column_labels
         obs column whose value labels each patient's column (e.g. ``"slide"``). None (default): no labels, since
         patient ids can be identifiers.
