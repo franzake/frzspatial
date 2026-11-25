@@ -10,6 +10,10 @@
   default engine is pure Python (Laplace-approximated ML as in glmmTMB, `frzspatial._nbglmm`), parallel with
   checkpoints; `engine="glmmtmb"` runs glmmTMB in R (`R/smide.R`). New dependencies: formulaic, joblib,
   threadpoolctl. `pl.plot_smide_volcano`.
+- `smide`: NanoString smiDE's contamination screen (`overlap_ratio_metric`) on the same neighbour graph: columns
+  `avg_celltype`, `avg_neighbor_other`, `overlap_ratio` (mean expression in the type's other-type neighbours / mean in
+  the type; above 1, a change may be spillover), and `max_overlap_ratio=` to test only genes below it (default: no
+  screen). `de.overlap_ratio` matches smiDE's algorithm exactly (tests).
 - Kept to the functions of a CosMx TMA analysis from flat files to cell types and glomeruli. Removed: stitched cores
   (`build_core`), napari viewing and annotation (`frzspatial.viewer`, `frzspatial.annotate`), niches (`frzspatial.niches`), the Seurat export (`frzspatial.export`), the `frzspatial` command,
   `save_table`, `slide_with_cells`, `decontx`, `plot_boundary`, `set_verbose`, and the plots `plot_slide_overview`,

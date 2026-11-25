@@ -171,3 +171,38 @@ def test_smide_glmmtmb_agrees():
     assert ok.sum() >= 4
     assert np.allclose(py.loc[ok, "beta"], r.loc[ok, "beta"], atol=2e-3)
     assert np.allclose(py.loc[ok, "SE"], r.loc[ok, "SE"], rtol=2e-2)
+
+
+def test_overlap_ratio_matches_nanostring():
+    """smiDE::overlap_ratio_metric, step by step: column-standardised adjacency over the other-type cells, mean over
+    the cell type's cells (cells without such neighbours count 0), data = counts x mean(total) / total."""
+    rng = np.random.default_rng(4)
+    n, G = 300, 5
+    xy = rng.uniform(0, 100, (n, 2))
+    Y = sp.csr_matrix(rng.poisson(2.0, (n, G)).astype(float))
+    U = np.asarray(Y.sum(axis=1)).ravel() + 3
+    ctype = rng.choice(["T", "O1", "O2"], n)
+    W = de.neighbor_graph(xy, None, radius_um=9.0).toarray()
+    data = Y.toarray() * (U.mean() / U)[:, None]                          # assay_matrix (cells x genes here)
+    cells, other = ctype == "T", ctype != "T"
+    rs = W[other].sum(axis=0)                                             # colSums(W[other_cells, ])
+    rs[rs == 0] = np.inf
+    Wcs = W / rs[None, :]                                                 # W %*% Diagonal(1 / rs)
+    other_ii = data[other].T @ Wcs[np.ix_(other, cells)]                  # genes x cells_ii
+    avg_n_ref, avg_t_ref = other_ii.mean(axis=1), data[cells].mean(axis=0)
+    avg_t, avg_n = de.overlap_ratio(sp.csr_matrix(W), Y, U, np.flatnonzero(cells), other)
+    assert np.allclose(avg_t, avg_t_ref) and np.allclose(avg_n, avg_n_ref)
+
+
+def test_smide_overlap_ratio_column_and_screen(sim):
+    kw = dict(contrasts={"G1_vs_N": ("disease", "G1", "N")}, celltypes=["A"], px_um=1, block_cols=("patient",),
+              min_cells=20, n_jobs=1, store=False)
+    full = de.smide(sim, "ct", "~ disease + (1|patient)", **kw)
+    assert {"overlap_ratio", "avg_celltype", "avg_neighbor_other"} <= set(full.columns)
+    assert full["overlap_ratio"].notna().all()
+    cut = float(full["overlap_ratio"].median())
+    screened = de.smide(sim, "ct", "~ disease + (1|patient)", max_overlap_ratio=cut, **kw)
+    assert set(screened["gene"]) == set(full.loc[full["overlap_ratio"] < cut, "gene"])
+    # the screened genes leave the BH family; the kept genes' fits are unchanged
+    m = full.set_index("gene").loc[screened["gene"]]
+    assert np.allclose(m["beta"].to_numpy(), screened["beta"].to_numpy())

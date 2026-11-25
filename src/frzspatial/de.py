@@ -42,7 +42,7 @@ from scipy.stats import norm, rankdata
 
 from ._utils import PX_UM, _log
 
-__all__ = ["smide", "neighbor_graph", "neighbor_expression", "ranknorm", "check_r"]
+__all__ = ["smide", "neighbor_graph", "neighbor_expression", "overlap_ratio", "ranknorm", "check_r"]
 
 _PROBE_PREFIXES = ("Negative", "SystemControl", "FalseCode", "NegPrb")
 _ENGINE_VERSION = "smide-1"
@@ -126,6 +126,39 @@ def neighbor_expression(A, counts, size, target, allowed, scale=1e4, agg="sum"):
     elif agg != "sum":
         raise ValueError(f"neighbor_agg must be 'sum' or 'mean', not {agg!r}")
     return sp.csc_matrix(N)
+
+
+def overlap_ratio(A, counts, size, target, other):
+    """NanoString smiDE's ``overlap_ratio_metric`` for one cell type: per gene, ``(avg_celltype, avg_neighbor_other)``.
+
+    ``avg_celltype`` is the mean total-count-normalised expression over the `target` cells; ``avg_neighbor_other`` is,
+    for each target cell, the mean over its neighbours in `other` (cells of other types), averaged over the target
+    cells (cells without such neighbours count 0), as ``smiDE::overlap_ratio_metric``. Their ratio is the metric:
+    above 1, the gene is higher around the cell type than in it, so its counts there are likely spillover (e.g.
+    podocyte genes in mesangial cells). Normalisation as smiDE's examples: counts x mean(size) / size.
+
+    Parameters
+    ----------
+    A
+        0/1 neighbour graph (cells x cells), e.g. ``neighbor_graph``.
+    counts, size
+        Counts (cells x genes, sparse) and each cell's total.
+    target
+        Indices of the cells of the type.
+    other
+        Boolean mask (cells) of the cells counted as its neighbours of other types.
+    """
+    n = len(size)
+    scale = np.where(size > 0, np.mean(size[size > 0]) / np.where(size > 0, size, 1), 0.0)
+    w = np.zeros(n)
+    w[target] = scale[target] / len(target)
+    avg_t = np.asarray(counts.T @ w).ravel()
+    At = A[target]
+    k = np.asarray(At @ other.astype(float)).ravel()
+    inv_k = np.where(k > 0, 1.0 / np.maximum(k, 1), 0.0)
+    v = np.asarray(At.T @ inv_k).ravel() * other * scale / len(target)
+    avg_n = np.asarray(counts.T @ v).ravel()
+    return avg_t, avg_n
 
 
 def _check_integer_counts(data, chunk=10_000_000):
@@ -347,7 +380,8 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
           size="total", radius_um=30.0, n_neighbors=None, neighbor_types="other", block_cols="auto",
           neighbor_agg="sum", neighbor_scale=1e4, neighbor_transform="ranknorm", coords="spatial", px_um=PX_UM,
           min_detection=0.10, min_cells=50, max_cells_per_group=None, contrast_mode="subset", engine="python",
-          n_jobs=-1, batch_size=32, checkpoint_dir=None, max_grad=1e-2, seed=0, store=True, rscript_bin=None):
+          n_jobs=-1, batch_size=32, checkpoint_dir=None, max_grad=1e-2, seed=0, store=True, rscript_bin=None,
+          max_overlap_ratio=None):
     """smiDE differential expression for every gene in any cell types of a SpatialData object.
 
     One family = one target cell type x one contrast. Per gene, an NB2 count model of the raw counts of the family's
@@ -403,6 +437,11 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
         ``"joint"``: one fit per cell type on all levels; every contrast is a linear combination of its coefficients.
     engine
         ``"python"`` (default) or ``"glmmtmb"`` (R; any random-effect terms; see ``check_r()``).
+    max_overlap_ratio
+        NanoString smiDE's contamination screen (``overlap_ratio_metric``): test, in each cell type, only the genes
+        whose overlap ratio (mean expression in the type's neighbours of other types / mean in the type) is below this
+        (smiDE's example: 1). None (default): no screen; the ratio is still reported (``overlap_ratio``) to flag genes
+        whose change may be spillover.
     rscript_bin
         Rscript of the R with glmmTMB for ``engine="glmmtmb"`` (default: ``$FRZSPATIAL_RSCRIPT``, else ``Rscript``
         on the PATH), e.g. a conda R kept apart from the R of the other R tools.
@@ -486,7 +525,8 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                   block_cols=list(block_cols) if use_nb else None, neighbor_agg=neighbor_agg,
                   neighbor_scale=neighbor_scale, neighbor_transform=neighbor_transform, px_um=px_um,
                   min_detection=min_detection, min_cells=min_cells, max_cells_per_group=max_cells_per_group,
-                  contrast_mode=contrast_mode, engine=engine, max_grad=max_grad, layer=layer, seed=seed)
+                  contrast_mode=contrast_mode, engine=engine, max_grad=max_grad, layer=layer, seed=seed,
+                  max_overlap_ratio=max_overlap_ratio)
 
     # families: (cell type, fit id, {contrast: spec})
     if contrast_mode == "subset":
@@ -504,11 +544,21 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
             else:
                 allowed = ok_cell & np.isin(ctype, list(neighbor_types))
             tidx_all = np.flatnonzero(tmask)
-            Gc = G if candidates.size == G.shape[1] else G[:, candidates]
+            # NanoString's overlap ratio, on the same graph: every gene, all cells of the type (all conditions)
+            avg_t, avg_n = overlap_ratio(A, G, U, tidx_all, allowed)
+            ratio_T = avg_n / np.where(avg_t > 0, avg_t, np.nan)
+            cand_T = candidates
+            if max_overlap_ratio is not None:
+                cand_T = candidates[np.nan_to_num(ratio_T[candidates], nan=np.inf) < max_overlap_ratio]
+                _log(f"smide: {T}: overlap-ratio screen (< {max_overlap_ratio}) keeps {cand_T.size:,} of "
+                     f"{candidates.size:,} genes")
+            Gc = G if cand_T.size == G.shape[1] else G[:, cand_T]
             Nall = neighbor_expression(A, Gc, U, tidx_all, allowed, neighbor_scale, neighbor_agg)
             del Gc
             pos_in_T = np.full(len(obs), -1)
             pos_in_T[tidx_all] = np.arange(tidx_all.size)
+        else:
+            cand_T, avg_t, avg_n, ratio_T = candidates, None, None, None
         for fit_id, fcons in fits:
             # 3. Cells of the family
             fam = tmask.copy()
@@ -573,7 +623,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                 _log(f"smide: skip {label}: {bad}")
                 continue
             # 4. Genes: union detection filter per contrast
-            Yf = sp.csc_matrix(G[idx][:, candidates], dtype=np.float64)
+            Yf = sp.csc_matrix(G[idx][:, cand_T], dtype=np.float64)
             det = (Yf > 0)
             tested = {}
             for cname, grp in groups_of.items():
@@ -595,7 +645,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                 gcodes, n_groups = None, 0
             Nf = Nall[pos_in_T[idx]][:, fit_genes].tocsc() if use_nb else None
             Yg = Yf[:, fit_genes].tocsc()
-            gl = gnames[candidates][fit_genes].tolist()
+            gl = gnames[cand_T][fit_genes].tolist()
             zero_groups = [(cn, list(gr)) for cn, gr in groups_of.items() if gr is not None]
             _log(f"smide: {label}: {idx.size:,} cells, {fit_genes.size:,} genes"
                  + (f", {n_groups} random-effect groups" if n_groups else ""))
@@ -657,6 +707,10 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                 for c in ("", "_low", "_high"):
                     r[f"log2FC{c}"] = r[f"beta{c}"] / np.log(2)
                 r["re_sd_near_zero"] = r["re_sd"] < 1e-4
+                if ratio_T is not None:
+                    gpos = pd.Index(gnames).get_indexer(r["gene"])
+                    r["avg_celltype"], r["avg_neighbor_other"] = avg_t[gpos], avg_n[gpos]
+                    r["overlap_ratio"] = ratio_T[gpos]
                 results.append(r)
                 n_sig = int((r["FDR_BH"] < 0.05).sum())
                 _log(f"smide: {T} / {cname}: {len(r)} genes, {int(r['valid'].sum())} valid, {n_sig} at FDR < 0.05")

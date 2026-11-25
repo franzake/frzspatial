@@ -30,7 +30,7 @@
 
 ::: frzspatial.de
     options:
-      members: [smide, neighbor_graph, neighbor_expression, ranknorm, check_r]
+      members: [smide, neighbor_graph, neighbor_expression, overlap_ratio, ranknorm, check_r]
 
 ## DeSpotX
 
