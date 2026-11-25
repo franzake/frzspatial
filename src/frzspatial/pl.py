@@ -152,13 +152,17 @@ def plot_core(sdata, core, genes=None, color=None, palette=None, title=None, cor
 
 
 def plot_composition(obs, color, sample="sample_id", group="group_mn", palette=None, figsize=(14, 7),
-                     exclude_groups=("Placenta",)):
+                     exclude_groups=("Placenta",), groups=None, legend_fontsize=8):
     """Composition of each sample in `color` (e.g. cell types), stacked bars of fractions, one panel per `group`.
 
     Parameters
     ----------
     obs
         Cell metadata with `sample`, `group` and `color` (rows without a sample, or in `exclude_groups`, are left out).
+    groups
+        Order of the panels (default: as in `obs`); groups not listed are left out.
+    legend_fontsize
+        Size of the legend's entries and title.
     palette
         ``{value: colour}`` (default: scanpy's colours over all values of `color`).
 
@@ -174,7 +178,8 @@ def plot_composition(obs, color, sample="sample_id", group="group_mn", palette=N
     d = d[~d[group].astype(str).isin(exclude_groups)]
     frac = pd.crosstab([d[group].astype(str), d[sample].astype(str)], d[color], normalize="index")
     frac = frac.loc[:, frac.sum() > 0]
-    groups = list(dict.fromkeys(frac.index.get_level_values(0)))
+    present = list(dict.fromkeys(frac.index.get_level_values(0)))
+    groups = [g for g in groups if g in present] if groups is not None else present
     from ._palette import scanpy_palette
 
     cats = obs[color].cat.categories if hasattr(obs[color], "cat") else frac.columns
@@ -192,7 +197,8 @@ def plot_composition(obs, color, sample="sample_id", group="group_mn", palette=N
         ax.set_xlim(-0.6, len(f) - 0.4)
     np.atleast_1d(axes)[0].set_ylabel("fraction of cells")
     handles = [plt.Rectangle((0, 0), 1, 1, color=cols.get(c, "0.7")) for c in frac.columns]
-    fig.legend(handles, frac.columns, title=color, loc="center left", bbox_to_anchor=(1, 0.5), fontsize=8, frameon=False)
+    fig.legend(handles, frac.columns, title=color, loc="center left", bbox_to_anchor=(1, 0.5), fontsize=legend_fontsize,
+               title_fontsize=legend_fontsize, frameon=False)
     fig.tight_layout()
     return fig
 
@@ -464,14 +470,14 @@ def plot_smide_heatmap(res, celltypes=None, contrasts=None, n_top=50, clip="auto
     gene_fs, col_fs, head_fs, title_fs = 0.85 * fs, fs, 1.2 * fs, 1.3 * fs
     labels = [f"{g} ({best[g]:+.1f})" for g in l2fc.index]
     xlabels = [o.split(" | ")[1].replace("_vs_", " vs ") for o in order]
-    row_h = gene_fs * 1.55 / 72
-    col_w = fs * 2.4 / 72
+    row_h = gene_fs * 1.35 / 72
+    col_w = fs * 2.0 / 72
     axes_h = row_h * (len(l2fc) + 1.3)                                   # genes + the cell-type header
     heat_w = col_w * len(order)
     label_w = max(len(x) for x in labels) * gene_fs * 0.6 / 72 + 0.3
     xlab_h = max(len(x) for x in xlabels) * col_fs * 0.62 / 72 + 0.3
-    cbar_w = 0.9 + fs * 6.5 / 72
-    W = label_w + heat_w + cbar_w + 0.3
+    cbar_w = 0.5 + fs * 5.5 / 72
+    W = label_w + heat_w + cbar_w + 0.2
     ttl = title or (f"smiDE: top {n_top} genes per family (* FDR < {fdr}; grey: not tested; "
                     "label: log2FC in its most significant family)")
     ttl = "\n".join(textwrap.wrap(ttl, width=max(30, int(W * 72 / (title_fs * 0.55)))))
@@ -636,8 +642,8 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     # 2. Layout in inches, every size from fontsize
     fs = fontsize
     gene_fs, col_fs, title_fs = 0.85 * fs, 0.75 * fs, 1.3 * fs
-    row_h = gene_fs * 1.55 / 72                                          # one gene row
-    col_w = fs * 1.6 / 72                                                # one patient column
+    row_h = gene_fs * 1.35 / 72                                          # one gene row
+    col_w = fs * 1.15 / 72                                               # one patient column
     n_pat = max(len(pp["pats"]) for pp in panels)
     heat_w = max(fs * 0.3, col_w * n_pat)
     axes_h = max(fs * 0.15, row_h * (n_genes + 1.3))                     # genes + the group strip
@@ -650,7 +656,7 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     ncol = 2 if len(panels) > 1 else 1
     nrow = int(np.ceil(len(panels) / ncol))
     cell_w = label_w + heat_w + 0.6
-    cbar_w = 0.9 + fs * 6.5 / 72                                         # bar, its tick labels and 2-line label
+    cbar_w = 0.5 + fs * 5.5 / 72                                         # bar, its tick labels and 2-line label
     W = ncol * cell_w + cbar_w
     sup = title or (f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM; "
                     + {"all": "patients clustered by hierarchical clustering",
@@ -900,7 +906,7 @@ def plot_group_values(values, group, groups=None, palette=None, ylabel=None, tit
 
 
 def plot_radial_position(obs, celltype_col, dist_col="ng_dist", celltypes=None, palette=None, cells=None, xmax=1.3,
-                         fontsize=7, figsize=None):
+                         fontsize=7, figsize=None, xlabel="radial position (0 = centre, 1 = edge)"):
     """Where each cell type sits inside a structure: density of its cells' radial position (0 = centre, 1 = edge,
     e.g. ``ng_dist`` of the tagged glomeruli), one ridge per cell type, its median marked.
 
@@ -952,7 +958,7 @@ def plot_radial_position(obs, celltype_col, dist_col="ng_dist", celltypes=None, 
     ax.set_yticks([])
     ax.set_xlim(0, xmax)
     ax.set_ylim(-0.1, len(types))
-    ax.set_xlabel("radial position (0 = centre, 1 = edge)", fontsize=fontsize)
+    ax.set_xlabel(xlabel, fontsize=fontsize)
     ax.tick_params(axis="x", labelsize=fontsize * 0.9)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
