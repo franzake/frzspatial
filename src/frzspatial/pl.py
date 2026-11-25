@@ -495,7 +495,7 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     nrow = int(np.ceil(len(types) / ncol))
     fig, axes = plt.subplots(nrow, ncol, figsize=(15 * ncol, fig_h * nrow / 2), squeeze=False)
     label_size = min(13, 520 / n_genes)
-    im = None
+    im, plotted = None, set()
     for ax, t in zip(axes.ravel(), types):
         r = r_all[r_all["celltype"] == t]
         top = r.nsmallest(n_genes, "p_for_inference").sort_values("log2FC", ascending=False)
@@ -524,6 +524,7 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
             order += list(cols)
             edges.append(len(order) - 0.5)
         z, pats = z[:, order], pats.iloc[order]
+        plotted |= set(pats["g"].astype(str))
         im = ax.imshow(np.clip(z, -z_lim, z_lim), cmap=cmap, vmin=-z_lim, vmax=z_lim, aspect="auto",
                        interpolation="none")
         ax.scatter(range(len(pats)), [-1.1] * len(pats), c=[palette.get(g, "0.6") for g in pats["g"].astype(str)],
@@ -552,8 +553,9 @@ def plot_smide_patients(sdata, res, celltype_col, contrast, group_col, patient_c
     cb = fig.colorbar(im, cax=cax, ticks=[-z_lim, -z_lim / 2, 0, z_lim / 2, z_lim])
     cb.ax.set_yticklabels([f"<= -{z_lim}", f"{-z_lim / 2:g}", "0", f"{z_lim / 2:g}", f">= {z_lim}"], fontsize=14)
     cb.set_label("robust z-score across patients\n(log CPM, median / MAD)", fontsize=16)
-    handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in groups]
-    fig.legend(handles=handles, loc="upper center", ncol=len(groups), fontsize=18, frameon=False,
+    shown = [g for g in groups if g in plotted]   # groups with at least one patient column
+    handles = [plt.Line2D([], [], marker="s", ls="", ms=14, color=palette.get(g, "0.6"), label=g) for g in shown]
+    fig.legend(handles=handles, loc="upper center", ncol=max(len(shown), 1), fontsize=18, frameon=False,
                bbox_to_anchor=(0.5, 1 - 1.0 / H))
     fig.suptitle(title or f"smiDE {contrast.replace('_vs_', ' vs ')}: patient pseudobulk (robust z of log CPM, "
                  "patients clustered within each group; label: log2FC, * FDR < 0.05)", fontsize=22, y=1 - 0.3 / H)
