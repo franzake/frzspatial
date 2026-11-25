@@ -119,13 +119,21 @@ def neighbor_expression(A, counts, size, target, allowed, scale=1e4, agg="sum"):
     """
     w = np.where(allowed, scale / np.where(size > 0, size, np.inf), 0.0)
     At = A[target]
-    N = (At @ sp.diags(w)) @ sp.csc_matrix(counts)
+    N = (At @ sp.diags(w)) @ counts   # CSR or CSC as given: no copy of the whole matrix
     if agg == "mean":
         k = np.asarray(At @ allowed.astype(float)).ravel()
         N = sp.diags(np.where(k > 0, 1.0 / np.maximum(k, 1), 0.0)) @ N
     elif agg != "sum":
         raise ValueError(f"neighbor_agg must be 'sum' or 'mean', not {agg!r}")
     return sp.csc_matrix(N)
+
+
+def _check_integer_counts(data, chunk=10_000_000):
+    """Raise unless all values are non-negative integers (in chunks: no full-size temporary arrays)."""
+    for i in range(0, data.size, chunk):
+        d = data[i:i + chunk]
+        if d.size and (d.min() < 0 or np.any(d != np.round(d))):
+            raise ValueError("counts must be raw non-negative integers (pass the raw-count `layer`)")
 
 
 def _bh(p, n):
@@ -439,12 +447,13 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
     # 1. Counts, size factors
     names = tb.var_names.astype(str)
     is_gene = ~names.str.startswith(_PROBE_PREFIXES)
-    Xall = sp.csr_matrix(tb.layers[layer] if layer else tb.X)
-    if Xall.nnz and (Xall.data.min() < 0 or not np.allclose(Xall.data, np.round(Xall.data))):
-        raise ValueError("counts must be raw non-negative integers (pass the raw-count `layer`)")
-    G = sp.csc_matrix(Xall[:, np.flatnonzero(is_gene)], dtype=np.float64)
+    # memory: one sparse matrix in its own dtype (no float64 / CSC copy of the whole table; families are small)
+    Xall = tb.layers[layer] if layer else tb.X
+    Xall = Xall if sp.isspmatrix_csr(Xall) or isinstance(Xall, sp.csr_array) else sp.csr_matrix(Xall)
+    _check_integer_counts(Xall.data)
+    G = Xall if is_gene.all() else Xall[:, np.flatnonzero(is_gene)]
     gnames = np.asarray(names[is_gene])
-    U = np.asarray(G.sum(axis=1)).ravel() if size == "total" else obs[size].to_numpy(float)
+    U = np.asarray(G.sum(axis=1, dtype=np.float64)).ravel() if size == "total" else obs[size].to_numpy(float)
     candidates = np.arange(G.shape[1]) if genes is None else np.flatnonzero(np.isin(gnames, list(genes)))
     ctype = obs[celltype_col].astype(object).where(obs[celltype_col].notna(), None).to_numpy()
     ok_cell = (U > 0) & pd.notna(ctype)
@@ -495,7 +504,9 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
             else:
                 allowed = ok_cell & np.isin(ctype, list(neighbor_types))
             tidx_all = np.flatnonzero(tmask)
-            Nall = neighbor_expression(A, G[:, candidates], U, tidx_all, allowed, neighbor_scale, neighbor_agg)
+            Gc = G if candidates.size == G.shape[1] else G[:, candidates]
+            Nall = neighbor_expression(A, Gc, U, tidx_all, allowed, neighbor_scale, neighbor_agg)
+            del Gc
             pos_in_T = np.full(len(obs), -1)
             pos_in_T[tidx_all] = np.arange(tidx_all.size)
         for fit_id, fcons in fits:
@@ -562,7 +573,7 @@ def smide(sdata, celltype_col, formula, contrasts=None, celltypes=None, table="t
                 _log(f"smide: skip {label}: {bad}")
                 continue
             # 4. Genes: union detection filter per contrast
-            Yf = G[idx][:, candidates].tocsc()
+            Yf = sp.csc_matrix(G[idx][:, candidates], dtype=np.float64)
             det = (Yf > 0)
             tested = {}
             for cname, grp in groups_of.items():
